@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DOF Cloud – Business Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #080808; color: #f0f0f0; font-family: 'Barlow', sans-serif; }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: #0d0d0d; }
+      ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+      input, select, textarea, button { outline: none; font-family: inherit; }
+      button { cursor: pointer; border: none; background: none; }
+
+      /* ── DRUCK / PDF ─────────────────────────────── */
+      @media print {
+        body { background: #fff !important; margin: 0; padding: 0; }
+
+        /* Alles verstecken */
+        body > * { display: none !important; }
+
+        /* Nur das Druck-Overlay anzeigen */
+        #dof-print-overlay {
+          display: block !important;
+          position: static !important;
+          background: #fff;
+          color: #111;
+          padding: 30px 40px;
+          font-family: 'Barlow', sans-serif;
+        }
+
+        #dof-print-overlay * {
+          color: #111 !important;
+          background: transparent !important;
+          border-color: #ddd !important;
+        }
+
+        #dof-print-overlay .kpi-grid {
+          display: grid !important;
+          grid-template-columns: repeat(4, 1fr) !important;
+          gap: 12px !important;
+          margin-bottom: 28px !important;
+        }
+        #dof-print-overlay .kpi-box {
+          border: 1px solid #ddd !important;
+          border-radius: 6px !important;
+          padding: 12px !important;
+          text-align: center !important;
+        }
+        #dof-print-overlay .profit { color: #15803d !important; }
+        #dof-print-overlay .loss   { color: #dc2626 !important; }
+        #dof-print-overlay table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+        #dof-print-overlay th, #dof-print-overlay td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 11px; text-align: left; }
+        #dof-print-overlay th { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #666 !important; }
+      }
+
+      /* Overlay selbst normalerweise unsichtbar */
+      #dof-print-overlay { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Druck-Container (außerhalb React, damit @media print ihn anzeigen kann) -->
+    <div id="dof-print-overlay"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
