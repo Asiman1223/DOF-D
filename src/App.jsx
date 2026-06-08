@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Login from "./Login.jsx";
+import SteuerView from "./Steuer.jsx";
+import KalkulatorView from "./Kalkulator.jsx";
 import { usePush } from "./usePush.js";
 import RechnungenView from "./Rechnungen.jsx";
 import { createClient } from "@supabase/supabase-js";
@@ -10,7 +12,7 @@ import {
 import {
   Package, ShoppingCart, TrendingUp, Users, Settings, BarChart2,
   FileText, DollarSign, AlertTriangle, Plus, Edit2, Trash2, X,
-  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone
+  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark
 } from "lucide-react";
 
 // ── Supabase ──────────────────────────────────────────────────────────
@@ -657,6 +659,8 @@ const NAV=[
   {id:"customers",label:"Kunden",       Icon:Users},
   {id:"settings",   label:"Einstellungen",Icon:Settings},
   {id:"rechnungen", label:"Rechnungen",    Icon:Upload},
+  {id:"steuer",     label:"Steuer",       Icon:Landmark},
+  {id:"kalkulator", label:"Kalkulator",   Icon:Calculator},
 ];
 
 function Sidebar({ active, setActive, lowN, onLogout, pushStatus, onPush, isMobile, isOpen, onClose }) {
@@ -720,6 +724,8 @@ export default function App() {
     stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>,
     settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
+    steuer:<SteuerView sales={sales} expenses={expenses}/>,
+    kalkulator:<KalkulatorView/>,
   };
 
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
