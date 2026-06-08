@@ -103,37 +103,79 @@ Regeln:
 Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
 {"betrag":ZAHL,"datum":"YYYY-MM-DD","haendler":"NAME","kategorie":"KATEGORIE","notiz":"BESCHREIBUNG"}`;
 
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${getGeminiKey()}`,
-        {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({
-            contents:[{ parts:[
-              { inline_data:{ mime_type: fileType || "image/jpeg", data: base64 } },
-              { text: prompt }
-            ]}],
-            generationConfig:{ temperature:0.1, maxOutputTokens:256 }
-          })
-        }
-      );
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      const text  = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      const clean = text.replace(/```json|```|\n/g,"").trim();
-      const json  = JSON.parse(clean);
+    // Mime-Type sicherstellen
+    const mime = (fileType && fileType !== "") ? fileType : "image/jpeg";
 
-      setExtracted({
-        amount:   String(json.betrag   || ""),
-        date:     json.datum           || new Date().toISOString().slice(0,10),
-        category: CATS.includes(json.kategorie) ? json.kategorie : "Sonstiges",
-        note:     [json.haendler, json.notiz].filter(Boolean).join(" – "),
-      });
-    } catch(e) {
-      console.error("Gemini:", e.message);
-      setError("KI konnte die Rechnung nicht vollständig lesen. Bitte Werte prüfen.");
-      setExtracted({ amount:"", date: new Date().toISOString().slice(0,10), category:"Sonstiges", note: fileName });
+    // Modelle der Reihe nach probieren
+    const MODELS = [
+      "gemini-2.0-flash-lite",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-latest",
+    ];
+
+    let lastError = "";
+    let succeeded = false;
+
+    for (const model of MODELS) {
+      if (succeeded) break;
+      try {
+        console.log("Versuche Modell:", model);
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getGeminiKey()}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [
+                { inline_data: { mime_type: mime, data: base64 } },
+                { text: prompt }
+              ]}],
+              generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+            })
+          }
+        );
+
+        const data = await res.json();
+        console.log("Gemini Antwort:", JSON.stringify(data).slice(0, 300));
+
+        if (data.error) {
+          lastError = `Modell ${model}: ${data.error.message}`;
+          console.warn(lastError);
+          continue;
+        }
+
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!text) { lastError = `Modell ${model}: leere Antwort`; continue; }
+
+        // JSON aus Antwort extrahieren (auch wenn Gemini Markdown hinzufügt)
+        let json;
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          json = JSON.parse(jsonMatch[0]);
+        } else {
+          const clean = text.replace(/```json|```/g, "").trim();
+          json = JSON.parse(clean);
+        }
+
+        setExtracted({
+          amount:   String(json.betrag || json.amount || json.total || json.gesamtbetrag || ""),
+          date:     json.datum || json.date || new Date().toISOString().slice(0, 10),
+          category: CATS.includes(json.kategorie) ? json.kategorie : "Sonstiges",
+          note:     [json.haendler, json.notiz || json.beschreibung].filter(Boolean).join(" – "),
+        });
+        succeeded = true;
+
+      } catch(e) {
+        lastError = `Modell ${model}: ${e.message}`;
+        console.warn(lastError);
+      }
+    }
+
+    if (!succeeded) {
+      console.error("Alle Modelle fehlgeschlagen:", lastError);
+      setError(`Fehler: ${lastError}. Bitte prüfe ob dein API-Key korrekt ist.`);
+      setExtracted({ amount: "", date: new Date().toISOString().slice(0, 10), category: "Sonstiges", note: fileName });
     }
     setAnalyzing(false);
   };
@@ -254,6 +296,12 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
             </div>
           )}
 
+          {/* Key zurücksetzen */}
+          {preview && !analyzing && !extracted && localStorage.getItem("dof_gemini_key") && (
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:6}}>
+              <button onClick={()=>{localStorage.removeItem("dof_gemini_key");alert("Key gelöscht — beim nächsten Auslesen neu eingeben");}} style={{background:"transparent",border:"none",color:"#666",fontFamily:"Barlow",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>API Key ändern</button>
+            </div>
+          )}
           {preview && !extracted && (
             <button onClick={analyze} disabled={analyzing} style={{width:"100%",background:analyzing?C.card2:C.red,color:"#fff",border:"none",borderRadius:7,padding:"11px",fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,letterSpacing:"1px",cursor:analyzing?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               {analyzing
