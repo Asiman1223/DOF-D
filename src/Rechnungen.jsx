@@ -119,12 +119,12 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
     let lastError = "";
     let succeeded = false;
 
-    for (const model of MODELS) {
+    for (const { model, api } of MODELS) {
       if (succeeded) break;
       try {
-        console.log("Versuche Modell:", model);
+        console.log(`Versuche ${api}/${model}`);
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getGeminiKey()}`,
+          `https://generativelanguage.googleapis.com/${api}/models/${model}:generateContent?key=${getGeminiKey()}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
