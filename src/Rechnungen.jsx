@@ -103,92 +103,34 @@ Regeln:
 Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
 {"betrag":ZAHL,"datum":"YYYY-MM-DD","haendler":"NAME","kategorie":"KATEGORIE","notiz":"BESCHREIBUNG"}`;
 
-    // Mime-Type sicherstellen
-    const mime = (fileType && fileType !== "") ? fileType : "image/jpeg";
-
-    // Modelle + API-Versionen der Reihe nach probieren
-    const MODELS = [
-      { model: "gemini-2.0-flash",            api: "v1beta" },
-      { model: "gemini-2.0-flash-lite",       api: "v1beta" },
-      { model: "gemini-1.5-flash",            api: "v1"     },
-      { model: "gemini-1.5-flash",            api: "v1beta" },
-      { model: "gemini-1.5-flash-002",        api: "v1"     },
-      { model: "gemini-1.5-flash-001",        api: "v1"     },
-    ];
-
-    let lastError = "";
-    let succeeded = false;
-
-    for (const { model, api } of MODELS) {
-      if (succeeded) break;
-      try {
-        console.log(`Versuche ${api}/${model}`);
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/${api}/models/${model}:generateContent?key=${getGeminiKey()}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [
-                { inline_data: { mime_type: mime, data: base64 } },
-                { text: prompt }
-              ]}],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
-            })
-          }
-        );
-
-        const data = await res.json();
-        console.log("Gemini Antwort:", JSON.stringify(data).slice(0, 300));
-
-        if (data.error) {
-          lastError = `${api}/${model}: ${data.error.message}`;
-          console.warn(lastError);
-          continue;
-        }
-
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (!text) { lastError = `Modell ${model}: leere Antwort`; continue; }
-
-        // JSON aus Antwort extrahieren (auch wenn Gemini Markdown hinzufügt)
-        let json;
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          json = JSON.parse(jsonMatch[0]);
+    try {
+      const res = await fetch("/api/analyze-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64, mimeType: fileType || "image/jpeg", apiKey: getGeminiKey() })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        const isAuth = ["credential","401","api key","authentication"].some(w => (data.error||"").toLowerCase().includes(w));
+        if (isAuth) {
+          localStorage.removeItem("dof_gemini_key");
+          setError("API Key ungültig. Bitte neuen Key eingeben.");
+          setShowKeyInput(true);
         } else {
-          const clean = text.replace(/```json|```/g, "").trim();
-          json = JSON.parse(clean);
+          setError(`Fehler: ${data.error}`);
+          setExtracted({ amount:"", date: new Date().toISOString().slice(0,10), category:"Sonstiges", note: fileName });
         }
-
-        setExtracted({
-          amount:   String(json.betrag || json.amount || json.total || json.gesamtbetrag || ""),
-          date:     json.datum || json.date || new Date().toISOString().slice(0, 10),
-          category: CATS.includes(json.kategorie) ? json.kategorie : "Sonstiges",
-          note:     [json.haendler, json.notiz || json.beschreibung].filter(Boolean).join(" – "),
-        });
-        succeeded = true;
-
-      } catch(e) {
-        lastError = `${api}/${model}: ${e.message}`;
-        console.warn(lastError);
-      }
-    }
-
-    if (!succeeded) {
-      console.error("Alle Modelle fehlgeschlagen:", lastError);
-      // Bei Auth-Fehler: alten Key löschen und Modal zeigen
-      const isAuthError = lastError.toLowerCase().includes("credential") ||
-                          lastError.toLowerCase().includes("401") ||
-                          lastError.toLowerCase().includes("authentication") ||
-                          lastError.toLowerCase().includes("api key");
-      if (isAuthError) {
-        localStorage.removeItem("dof_gemini_key");
-        setError("API Key ungültig oder gesperrt. Bitte neuen Key eingeben.");
-        setShowKeyInput(true);
       } else {
-        setError(`Fehler: ${lastError}`);
-        setExtracted({ amount: "", date: new Date().toISOString().slice(0, 10), category: "Sonstiges", note: fileName });
+        setExtracted({
+          amount:   String(data.betrag || ""),
+          date:     data.datum || new Date().toISOString().slice(0,10),
+          category: CATS.includes(data.kategorie) ? data.kategorie : "Sonstiges",
+          note:     [data.haendler, data.notiz].filter(Boolean).join(" – "),
+        });
       }
+    } catch(e) {
+      setError("Verbindungsfehler: " + e.message);
+      setExtracted({ amount:"", date: new Date().toISOString().slice(0,10), category:"Sonstiges", note: fileName });
     }
     setAnalyzing(false);
   };
