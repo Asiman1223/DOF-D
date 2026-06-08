@@ -597,7 +597,7 @@ function KundView({ customers, setCustomers, sales }) {
   );
 }
 
-function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, setCustomers }) {
+function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, setCustomers, pushStatus, onPush }) {
   const isMobile = useIsMobile();
   const [thr,setThr]=useState(String(settings.lowStockThreshold));
   const [ask,confirmNode]=useConfirm();
@@ -617,6 +617,26 @@ function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, 
             <Btn variant="danger" onClick={()=>reset("Produkte",()=>setProducts(INIT_PRODUCTS))}><Trash2 size={12}/> Produkte reset</Btn>
             <Btn variant="danger" onClick={()=>reset("Daten",()=>{setProducts(INIT_PRODUCTS);setSales([]);setExpenses([]);setCustomers([]);})} style={{gridColumn:"1/-1",background:"#2a0808"}}><Trash2 size={12}/> ALLE DATEN ZURÜCKSETZEN</Btn>
           </div>
+        </Card>
+        <Card>
+          <SH>Push-Benachrichtigungen</SH>
+          {pushStatus==="granted"
+            ?<div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,background:"#081a0e",border:`1px solid ${C.grn}44`,borderRadius:7,padding:"10px 14px"}}>
+                <Bell size={14} color={C.grn}/>
+                <span style={{fontFamily:"Barlow",fontSize:13,color:C.grn}}>Benachrichtigungen sind aktiv ✓</span>
+              </div>
+              <Btn variant="ghost" sm onClick={async()=>{
+                const r=await fetch(`/api/send-test-push?secret=Qbingo10`);
+                const d=await r.json();
+                alert(d.sent>0?`✓ Test gesendet! (${d.sent} Gerät)`:(d.message||"Fehler: "+JSON.stringify(d)));
+              }}><Bell size={12}/> Test-Benachrichtigung senden</Btn>
+            </div>
+            :<div>
+              <p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginBottom:12}}>Aktiviere Push-Benachrichtigungen um bei jeder neuen Shopify-Bestellung sofort informiert zu werden.</p>
+              <Btn onClick={onPush}><Smartphone size={13}/> Benachrichtigungen aktivieren</Btn>
+            </div>
+          }
         </Card>
         <Card><SH>Über DOFClothes</SH><div style={{fontFamily:"Barlow",fontSize:12,color:C.muted,lineHeight:1.7}}><strong style={{color:C.txt,fontFamily:"Barlow Condensed",fontSize:14,letterSpacing:"0.5px"}}>DOFClothes Business Dashboard</strong><br/>Internes Management-Tool für dofclothes.de<br/>Daten werden in der Cloud gespeichert (Supabase) — überall verfügbar.</div></Card>
       </div>
@@ -698,7 +718,7 @@ export default function App() {
     dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
     sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
     stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>,
-    settings:<EinstView {...vp}/>,
+    settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
   };
 
