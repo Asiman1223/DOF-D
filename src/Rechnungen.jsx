@@ -108,10 +108,10 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
 
     // Modelle der Reihe nach probieren
     const MODELS = [
-      "gemini-2.0-flash-lite",
       "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
       "gemini-1.5-flash",
-      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash-8b",
     ];
 
     let lastError = "";
@@ -174,7 +174,8 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
 
     if (!succeeded) {
       console.error("Alle Modelle fehlgeschlagen:", lastError);
-      setError(`Fehler: ${lastError}. Bitte prüfe ob dein API-Key korrekt ist.`);
+      const keyHint = !getGeminiKey() ? " Kein API Key gespeichert!" : " Key möglicherweise ungültig oder gesperrt — bitte neuen Key eingeben.";
+      setError(`Fehler: ${lastError}.${keyHint}`);
       setExtracted({ amount: "", date: new Date().toISOString().slice(0, 10), category: "Sonstiges", note: fileName });
     }
     setAnalyzing(false);
