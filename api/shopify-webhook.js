@@ -1,12 +1,12 @@
 // api/shopify-webhook.js
 
-const WEBHOOK_SECRET   = "Qbingo10";
-const SUPABASE_URL     = "https://rgyunvmdsqglrvivxhrs.supabase.co";
-const SUPABASE_SERVICE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJneXVudm1kc3FnbHJ2aXZ4aHJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDUyMzE4OCwiZXhwIjoyMDk2MDk5MTg4fQ.HSlE9j188Utnq_odXBBrvks7NjmExbsgSzbE0JlXh4Q";
+const WEBHOOK_SECRET   = process.env.SHOPIFY_WEBHOOK_SECRET;
+const SUPABASE_URL     = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_KEY;
 
-const VAPID_PUBLIC  = "BG42RaTg1Cp1ri6OoGjfQPWTijPN6RJdcK_Gs4YmPbyAkFePPymYjckYyBNRtXHJ06XXhwhkz7zsLpS5EmoNg3A";
-const VAPID_PRIVATE = "4zle_bJJuvQFa9iQHbOOqyG8zabeAcG-F3YWxH7_RkQ";
-const VAPID_EMAIL   = "mailto:info@dofclothes.de";
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
+const VAPID_EMAIL   = process.env.VAPID_EMAIL || "mailto:info@dofclothes.de";
 
 // ── Supabase REST ─────────────────────────────────────────────────────
 const HEADERS = { apikey: SUPABASE_SERVICE, Authorization: `Bearer ${SUPABASE_SERVICE}`, "Content-Type": "application/json" };

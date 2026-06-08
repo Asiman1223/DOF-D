@@ -1,10 +1,6 @@
-// src/usePush.js
 import { useState, useEffect } from "react";
 
-const VAPID_PUBLIC = "BG42RaTg1Cp1ri6OoGjfQPWTijPN6RJdcK_Gs4YmPbyAkFePPymYjckYyBNRtXHJ06XXhwhkz7zsLpS5EmoNg3A";
-
-const SUPABASE_URL  = "https://rgyunvmdsqglrvivxhrs.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJneXVudm1kc3FnbHJ2aXZ4aHJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDUyMzE4OCwiZXhwIjoyMDk2MDk5MTg4fQ.HSlE9j188Utnq_odXBBrvks7NjmExbsgSzbE0JlXh4Q";
+const VAPID_PUBLIC = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
 
 function urlBase64ToUint8(base64String) {
   const pad = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -13,22 +9,17 @@ function urlBase64ToUint8(base64String) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
-async function saveSubToSupabase(sub) {
-  const key = `push_sub_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
-  await fetch(`${SUPABASE_URL}/rest/v1/app_data`, {
+async function saveSubscription(sub) {
+  const res = await fetch("/api/subscribe-push", {
     method: "POST",
-    headers: {
-      apikey: SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_ANON}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates",
-    },
-    body: JSON.stringify({ key, value: sub.toJSON(), updated_at: new Date().toISOString() }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subscription: sub.toJSON() }),
   });
+  if (!res.ok) throw new Error("Push subscription konnte nicht gespeichert werden");
 }
 
 export function usePush() {
-  const [status, setStatus] = useState("idle"); // idle | requesting | granted | denied | unsupported
+  const [status, setStatus] = useState("idle");
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -36,8 +27,8 @@ export function usePush() {
       return;
     }
     const perm = Notification.permission;
-    if (perm === "granted")  setStatus("granted");
-    if (perm === "denied")   setStatus("denied");
+    if (perm === "granted") setStatus("granted");
+    if (perm === "denied") setStatus("denied");
   }, []);
 
   const registerSW = async () => {
@@ -61,16 +52,16 @@ export function usePush() {
       const reg = await registerSW();
       if (!reg) { setStatus("idle"); return; }
 
-      // Bestehende Subscription prüfen
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
+        if (!VAPID_PUBLIC) throw new Error("VITE_VAPID_PUBLIC_KEY fehlt");
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8(VAPID_PUBLIC),
         });
       }
 
-      await saveSubToSupabase(sub);
+      await saveSubscription(sub);
       setStatus("granted");
     } catch (e) {
       console.error("Push subscribe error:", e);

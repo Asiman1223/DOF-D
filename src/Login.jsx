@@ -1,27 +1,35 @@
 import { useState } from "react";
 
-// ✏️ PASSWORT HIER ÄNDERN:
-const PASSWORT = "Qbingo10";
-
 const C = {
   bg:"#080808", panel:"#0d0d0d", bdr:"#222222",
   red:"#e11d48", txt:"#f0f0f0", muted:"#666666"
 };
 
 export default function Login({ onLogin }) {
-  const [pw,  setPw]  = useState("");
+  const [pw, setPw] = useState("");
   const [err, setErr] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     const entered = pw.trim();
+    if (!entered || busy) return;
 
-    if (entered === PASSWORT) {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: entered }),
+      });
+      if (!res.ok) throw new Error("login failed");
       localStorage.setItem("dof_auth", "1");
       onLogin();
-    } else {
+    } catch {
       setErr(true);
       setPw("");
       setTimeout(() => setErr(false), 600);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -39,7 +47,6 @@ export default function Login({ onLogin }) {
         .login-btn:hover { background: #c81040 !important; }
       `}</style>
 
-      {/* Logo */}
       <div style={{ textAlign:"center", marginBottom:36 }}>
         <div style={{ fontFamily:"Bebas Neue", fontSize:44, letterSpacing:"7px", color:C.txt, lineHeight:1 }}>
           DOFCLOTHES
@@ -49,7 +56,6 @@ export default function Login({ onLogin }) {
         </div>
       </div>
 
-      {/* Login Card */}
       <div
         className={err ? "shake" : ""}
         style={{
@@ -70,7 +76,7 @@ export default function Login({ onLogin }) {
           value={pw}
           onChange={e => setPw(e.target.value)}
           onKeyDown={e => e.key === "Enter" && submit()}
-          placeholder="••••••••"
+          placeholder="********"
           autoFocus
           style={{
             width:"100%", background:"#171717",
@@ -83,14 +89,16 @@ export default function Login({ onLogin }) {
         <button
           className="login-btn"
           onClick={submit}
+          disabled={busy}
           style={{
             width:"100%", background:C.red, color:"#fff",
             border:"none", borderRadius:6, padding:"11px",
             fontFamily:"Barlow Condensed", fontSize:15, fontWeight:700,
-            letterSpacing:"1.5px", cursor:"pointer", transition:"background 0.15s",
+            letterSpacing:"1.5px", cursor:busy?"default":"pointer", transition:"background 0.15s",
+            opacity:busy?.7:1,
           }}
         >
-          EINLOGGEN
+          {busy ? "PRUEFE..." : "EINLOGGEN"}
         </button>
         {err && (
           <div style={{ fontFamily:"Barlow", fontSize:12, color:C.red, textAlign:"center", marginTop:12 }}>

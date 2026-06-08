@@ -4,7 +4,6 @@ import SteuerView from "./Steuer.jsx";
 import KalkulatorView from "./Kalkulator.jsx";
 import { usePush } from "./usePush.js";
 import RechnungenView from "./Rechnungen.jsx";
-import { createClient } from "@supabase/supabase-js";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -17,10 +16,6 @@ import {
 
 // ── Supabase ──────────────────────────────────────────────────────────
 // ✏️ Supabase Zugangsdaten
-const SUPABASE_URL  = "https://rgyunvmdsqglrvivxhrs.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJneXVudm1kc3FnbHJ2aXZ4aHJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDUyMzE4OCwiZXhwIjoyMDk2MDk5MTg4fQ.HSlE9j188Utnq_odXBBrvks7NjmExbsgSzbE0JlXh4Q";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Farben ────────────────────────────────────────────────────────────
 const C = {
@@ -39,14 +34,17 @@ function useDB(key, init) {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase
-          .from("app_data")
-          .select("value")
-          .eq("key", key)
-          .maybeSingle();
-        if (data) setVal(data.value);
+        const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
+        if (res.status === 401) {
+          localStorage.removeItem("dof_auth");
+          window.location.reload();
+          return;
+        }
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        if (data.value !== null && data.value !== undefined) setVal(data.value);
       } catch (e) {
-        console.warn("Supabase load error:", e);
+        console.warn("Data load error:", e);
       }
       setRdy(true);
     })();
@@ -56,10 +54,13 @@ function useDB(key, init) {
   const save = useCallback((v) => {
     setVal(prev => {
       const next = typeof v === "function" ? v(prev) : v;
-      supabase
-        .from("app_data")
-        .upsert({ key, value: next, updated_at: new Date().toISOString() })
-        .then(({ error }) => { if (error) console.warn("Supabase save error:", error); });
+      fetch("/api/data", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value: next }),
+      }).then(res => {
+        if (!res.ok) console.warn("Data save error:", res.status);
+      }).catch(e => console.warn("Data save error:", e));
       return next;
     });
   }, [key]);
@@ -629,7 +630,7 @@ function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, 
                 <span style={{fontFamily:"Barlow",fontSize:13,color:C.grn}}>Benachrichtigungen sind aktiv ✓</span>
               </div>
               <Btn variant="ghost" sm onClick={async()=>{
-                const r=await fetch(`/api/send-test-push?secret=Qbingo10`);
+                const r=await fetch("/api/send-test-push", { method:"POST" });
                 const d=await r.json();
                 alert(d.sent>0?`✓ Test gesendet! (${d.sent} Gerät)`:(d.message||"Fehler: "+JSON.stringify(d)));
               }}><Bell size={12}/> Test-Benachrichtigung senden</Btn>
@@ -750,7 +751,7 @@ export default function App() {
         active={active}
         setActive={id => { setActive(id); setSideOpen(false); }}
         lowN={lowN}
-        onLogout={() => { localStorage.removeItem("dof_auth"); setAuthed(false); }}
+        onLogout={() => { fetch("/api/logout").catch(()=>{}); localStorage.removeItem("dof_auth"); setAuthed(false); }}
         pushStatus={pushStatus}
         onPush={pushSubscribe}
         isMobile={isMobile}
