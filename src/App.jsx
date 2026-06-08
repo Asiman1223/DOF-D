@@ -1,0 +1,747 @@
+import { useState, useEffect, useCallback } from "react";
+import Login from "./Login.jsx";
+import { usePush } from "./usePush.js";
+import RechnungenView from "./Rechnungen.jsx";
+import { createClient } from "@supabase/supabase-js";
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from "recharts";
+import {
+  Package, ShoppingCart, TrendingUp, Users, Settings, BarChart2,
+  FileText, DollarSign, AlertTriangle, Plus, Edit2, Trash2, X,
+  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone
+} from "lucide-react";
+
+// ── Supabase ──────────────────────────────────────────────────────────
+// ✏️ Supabase Zugangsdaten
+const SUPABASE_URL  = "https://rgyunvmdsqglrvivxhrs.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJneXVudm1kc3FnbHJ2aXZ4aHJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDUyMzE4OCwiZXhwIjoyMDk2MDk5MTg4fQ.HSlE9j188Utnq_odXBBrvks7NjmExbsgSzbE0JlXh4Q";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── Farben ────────────────────────────────────────────────────────────
+const C = {
+  bg:"#080808", panel:"#0d0d0d", card:"#111111", card2:"#171717",
+  bdr:"#222222", red:"#e11d48", grn:"#22c55e", ylw:"#f59e0b",
+  blu:"#3b82f6", txt:"#f0f0f0", muted:"#888888", dim:"#444444"
+};
+
+// ── Supabase Storage Hook ─────────────────────────────────────────────
+// Speichert Daten in Supabase → überall verfügbar, immer aktuell
+function useDB(key, init) {
+  const [val, setVal]   = useState(init);
+  const [ready, setRdy] = useState(false);
+
+  // Daten beim Start laden
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("app_data")
+          .select("value")
+          .eq("key", key)
+          .maybeSingle();
+        if (data) setVal(data.value);
+      } catch (e) {
+        console.warn("Supabase load error:", e);
+      }
+      setRdy(true);
+    })();
+  }, [key]);
+
+  // Speichern (optimistic: State sofort, DB asynchron)
+  const save = useCallback((v) => {
+    setVal(prev => {
+      const next = typeof v === "function" ? v(prev) : v;
+      supabase
+        .from("app_data")
+        .upsert({ key, value: next, updated_at: new Date().toISOString() })
+        .then(({ error }) => { if (error) console.warn("Supabase save error:", error); });
+      return next;
+    });
+  }, [key]);
+
+  return [val, save, ready];
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+const fmt = n => `${parseFloat(n || 0).toFixed(2).replace(".", ",")} €`;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const tod = () => new Date().toISOString().slice(0, 10);
+const MON = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+
+
+// ── Mobile Detection ──────────────────────────────────────────────────
+function useIsMobile() {
+  const [m, setM] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+}
+
+const INIT_PRODUCTS = [
+  { id:"p1", name:"DOF Performance Training T-Shirt", category:"Trainings-T-Shirt", color:"Schwarz", material:"Polyester", sizes:{S:0,M:0,L:0,XL:0,XXL:0}, buyPrice:8.5, sellPrice:29.99, status:"planned" },
+  { id:"p2", name:"DOF Oversized T-Shirt", category:"Oversized T-Shirt", color:"Schwarz", material:"100% Baumwolle", sizes:{S:0,M:0,L:0,XL:0,XXL:0}, buyPrice:9.0, sellPrice:34.99, status:"planned" }
+];
+
+// ── PDF / Druck ───────────────────────────────────────────────────────
+// Schreibt HTML in den #dof-print-overlay außerhalb von React
+// @media print zeigt nur diesen Container an
+function printReport({ sales, expenses, mo, yr }) {
+  const ms = sales.filter(s => { const d=new Date(s.date); return d.getMonth()===mo && d.getFullYear()===yr && s.status!=="cancelled"; });
+  const me = expenses.filter(e => { const d=new Date(e.date); return d.getMonth()===mo && d.getFullYear()===yr; });
+  const rev   = ms.reduce((a,s)=>a+s.total,0);
+  const gP    = ms.reduce((a,s)=>a+s.profit,0);
+  const totE  = me.reduce((a,e)=>a+e.amount,0);
+  const net   = gP - totE;
+
+  const overlay = document.getElementById("dof-print-overlay");
+  overlay.innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;margin-bottom:2px">DOF – DISCIPLINE OVER FEELINGS</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;color:#666;margin-bottom:24px;letter-spacing:2px">MONATSBERICHT ${MON[mo].toUpperCase()} ${yr} · DOFCLOUDS.DE</div>
+    <div class="kpi-grid">
+      <div class="kpi-box"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:6px">Umsatz</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700">${fmt(rev)}</div></div>
+      <div class="kpi-box"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:6px">Rohgewinn</div><div class="profit" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700">${fmt(gP)}</div></div>
+      <div class="kpi-box"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:6px">Ausgaben</div><div class="loss" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700">${fmt(totE)}</div></div>
+      <div class="kpi-box"><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:6px">Nettogewinn</div><div class="${net>=0?"profit":"loss"}" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700">${fmt(net)}</div></div>
+    </div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#666;border-bottom:2px solid #111;padding-bottom:5px;margin-bottom:10px">Verkäufe (${ms.length})</div>
+    <table>
+      <thead><tr><th>Datum</th><th>Produkt</th><th>Gr.</th><th>Menge</th><th>Betrag</th><th>Gewinn</th><th>Zahlung</th><th>Kunde</th></tr></thead>
+      <tbody>${ms.map(s=>`<tr><td>${s.date}</td><td>${s.productName.split(" ").slice(0,4).join(" ")}</td><td>${s.size}</td><td>${s.quantity}</td><td>${fmt(s.total)}</td><td class="profit">${fmt(s.profit)}</td><td>${s.payment}</td><td>${s.customerName||"–"}</td></tr>`).join("")}
+      ${ms.length===0?`<tr><td colspan="8" style="text-align:center;color:#999;padding:14px">Keine Verkäufe</td></tr>`:""}</tbody>
+    </table>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#666;border-bottom:2px solid #111;padding-bottom:5px;margin-bottom:10px">Ausgaben (${me.length})</div>
+    <table>
+      <thead><tr><th>Datum</th><th>Kategorie</th><th>Betrag</th><th>Notiz</th></tr></thead>
+      <tbody>${me.map(e=>`<tr><td>${e.date}</td><td>${e.category}</td><td class="loss">${fmt(e.amount)}</td><td>${e.note||"–"}</td></tr>`).join("")}
+      ${me.length===0?`<tr><td colspan="4" style="text-align:center;color:#999;padding:14px">Keine Ausgaben</td></tr>`:""}</tbody>
+    </table>
+    <div style="margin-top:30px;font-size:10px;color:#999;border-top:1px solid #eee;padding-top:10px">Erstellt am ${new Date().toLocaleDateString("de-DE")} · DOFClothes Business Dashboard · dofclothes.de</div>
+  `;
+  overlay.style.display = "block";
+  window.print();
+  // Nach dem Drucken wieder verstecken
+  setTimeout(() => { overlay.style.display = "none"; overlay.innerHTML = ""; }, 1000);
+}
+
+// ── Primitive Komponenten ─────────────────────────────────────────────
+const Card = ({ children, style, id }) => (
+  <div id={id} style={{ background:C.card, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"16px 20px", ...style }}>
+    {children}
+  </div>
+);
+
+const Btn = ({ children, onClick, variant="primary", style, sm, disabled }) => {
+  const V = {
+    primary:{ background:C.red, color:"#fff", border:"none" },
+    ghost:  { background:"transparent", color:C.txt, border:`1px solid ${C.bdr}` },
+    danger: { background:"#200810", color:C.red, border:`1px solid #3a0a12` },
+    success:{ background:"#081a0e", color:C.grn, border:`1px solid #0a2a14` },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...V[variant], borderRadius:6, padding:sm?"5px 11px":"8px 16px",
+      fontFamily:"Barlow", fontWeight:600, fontSize:sm?12:13, letterSpacing:"0.4px",
+      display:"flex", alignItems:"center", gap:5, opacity:disabled?.5:1, ...style
+    }}>
+      {children}
+    </button>
+  );
+};
+
+const Fld = ({ label, value, onChange, type="text", options, placeholder, style }) => (
+  <div style={{ display:"flex", flexDirection:"column", gap:4, ...style }}>
+    {label && <label style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.8px" }}>{label}</label>}
+    {options
+      ? <select value={value} onChange={e=>onChange(e.target.value)} style={{ background:C.card2, border:`1px solid ${C.bdr}`, color:C.txt, borderRadius:6, padding:"7px 10px", fontFamily:"Barlow", fontSize:13 }}>
+          {options.map(o=><option key={typeof o==="object"?o.value:o} value={typeof o==="object"?o.value:o}>{typeof o==="object"?o.label:o}</option>)}
+        </select>
+      : <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+          style={{ background:C.card2, border:`1px solid ${C.bdr}`, color:C.txt, borderRadius:6, padding:"7px 10px", fontFamily:"Barlow", fontSize:13 }}/>
+    }
+  </div>
+);
+
+const Badge = ({ children, color=C.muted }) => (
+  <span style={{ background:color+"22", color, border:`1px solid ${color}44`, borderRadius:4, padding:"2px 7px", fontSize:10, fontFamily:"Barlow Condensed", fontWeight:700, letterSpacing:"0.5px", whiteSpace:"nowrap" }}>
+    {children}
+  </span>
+);
+
+const Modal = ({ title, onClose, children, width=560 }) => (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999 }}>
+    <div style={{ background:C.panel, border:`1px solid ${C.bdr}`, borderRadius:12, width, maxWidth:"96vw", maxHeight:"90vh", overflowY:"auto" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:`1px solid ${C.bdr}` }}>
+        <h3 style={{ fontFamily:"Barlow Condensed", fontSize:17, fontWeight:700, color:C.txt }}>{title}</h3>
+        <button onClick={onClose} style={{ color:C.muted, cursor:"pointer" }}><X size={17}/></button>
+      </div>
+      <div style={{ padding:"18px" }}>{children}</div>
+    </div>
+  </div>
+);
+
+const SH = ({ children }) => (
+  <div style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:10, paddingBottom:7, borderBottom:`1px solid ${C.bdr}` }}>
+    {children}
+  </div>
+);
+
+const Stat = ({ label, value, Icon, color=C.red, sub }) => (
+  <Card>
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+      <span style={{ fontFamily:"Barlow", fontSize:11, color:C.muted }}>{label}</span>
+      <div style={{ background:color+"22", borderRadius:5, padding:5 }}><Icon size={14} color={color}/></div>
+    </div>
+    <div style={{ fontFamily:"Barlow Condensed", fontSize:26, fontWeight:700, color:C.txt, lineHeight:1 }}>{value}</div>
+    {sub && <div style={{ fontFamily:"Barlow", fontSize:11, color:C.muted, marginTop:4 }}>{sub}</div>}
+  </Card>
+);
+
+const TP = { active:C.grn, sold_out:C.red, planned:C.ylw };
+const TL = { active:"Aktiv", sold_out:"Ausverkauft", planned:"Geplant" };
+
+function ConfirmModal({ text, onYes, onNo }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1100 }}>
+      <div style={{ background:C.panel, border:`1px solid ${C.bdr}`, borderRadius:10, padding:"22px 24px", width:340 }}>
+        <p style={{ fontFamily:"Barlow", fontSize:14, color:C.txt, marginBottom:20 }}>{text}</p>
+        <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+          <Btn variant="ghost" onClick={onNo}>Abbrechen</Btn>
+          <Btn variant="danger" onClick={onYes}><Trash2 size={13}/> Löschen</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useConfirm() {
+  const [state, setState] = useState(null);
+  const ask = (text, onYes) => setState({ text, onYes });
+  const node = state ? (
+    <ConfirmModal text={state.text} onYes={() => { state.onYes(); setState(null); }} onNo={() => setState(null)}/>
+  ) : null;
+  return [ask, node];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// VIEWS
+// ════════════════════════════════════════════════════════════════════
+
+function DashView({ products, sales, expenses, settings }) {
+  const isMobile = useIsMobile();
+  const now   = new Date();
+  const valid = sales.filter(s => s.status !== "cancelled");
+  const rev   = valid.reduce((a,s) => a+s.total, 0);
+  const prof  = valid.reduce((a,s) => a+s.profit, 0);
+  const mSal  = valid.filter(s => { const d=new Date(s.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+  const mRev  = mSal.reduce((a,s) => a+s.total, 0);
+  const dRev  = valid.filter(s => s.date===tod()).reduce((a,s) => a+s.total, 0);
+  const stock = products.reduce((a,p) => a+Object.values(p.sizes).reduce((x,y)=>x+y,0), 0);
+  const low   = products.filter(p => { const t=Object.values(p.sizes).reduce((a,b)=>a+b,0); return t>0&&t<=settings.lowStockThreshold; });
+  const pRev  = {}; valid.forEach(s => { pRev[s.productName]=(pRev[s.productName]||0)+s.total; });
+  const top   = Object.entries(pRev).sort((a,b)=>b[1]-a[1])[0];
+  const chart = Array.from({length:6},(_,i)=>{
+    const d  = new Date(now.getFullYear(),now.getMonth()-5+i,1);
+    const ms = valid.filter(s=>{const sd=new Date(s.date);return sd.getMonth()===d.getMonth()&&sd.getFullYear()===d.getFullYear();});
+    return{name:MON[d.getMonth()],Umsatz:+ms.reduce((a,s)=>a+s.total,0).toFixed(2),Gewinn:+ms.reduce((a,s)=>a+s.profit,0).toFixed(2)};
+  });
+  const recent = [...sales].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
+  return (
+    <div>
+      <div style={{marginBottom:22}}>
+        <h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>DASHBOARD</h2>
+        <p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Willkommen zurück. Alle Daten live aus der Cloud.</p>
+      </div>
+      {low.length>0&&<div style={{background:"#1e1200",border:`1px solid ${C.ylw}44`,borderRadius:7,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+        <AlertTriangle size={14} color={C.ylw}/>
+        <span style={{fontFamily:"Barlow",fontSize:12,color:C.ylw}}>{low.length} Produkt{low.length>1?"e":""} mit niedrigem Bestand: {low.map(p=>p.name.split(" ").slice(0,3).join(" ")).join(", ")}</span>
+      </div>}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(3,1fr)",gap:10,marginBottom:16}}>
+        <Stat label="Gesamtumsatz"    value={fmt(rev)}         Icon={TrendingUp} color={C.grn}/>
+        <Stat label="Monatsumsatz"    value={fmt(mRev)}        Icon={DollarSign} color={C.blu}/>
+        <Stat label="Tagesumsatz"     value={fmt(dRev)}        Icon={Receipt}    color={C.red}/>
+        <Stat label="Lagerbestand"    value={`${stock} Stk`}   Icon={Archive}    color={C.ylw} sub={`${products.length} Produkte`}/>
+        <Stat label="Gewinnschätzung" value={fmt(prof)}        Icon={TrendingUp} color={C.grn} sub="aus Verkäufen"/>
+        <Stat label="Top-Produkt"     value={top?top[0].split(" ").slice(0,3).join(" "):"–"} Icon={Package} color={C.red} sub={top?fmt(top[1]):""}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"3fr 2fr",gap:14}}>
+        <Card>
+          <SH>Umsatz & Gewinn — letzte 6 Monate</SH>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={chart}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.bdr}/>
+              <XAxis dataKey="name" tick={{fill:C.muted,fontSize:10,fontFamily:"Barlow"}}/>
+              <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"Barlow"}}/>
+              <Tooltip contentStyle={{background:C.card2,border:`1px solid ${C.bdr}`,borderRadius:5,fontFamily:"Barlow",fontSize:12}}/>
+              <Legend wrapperStyle={{fontFamily:"Barlow",fontSize:11}}/>
+              <Line type="monotone" dataKey="Umsatz" stroke={C.blu} strokeWidth={2} dot={false}/>
+              <Line type="monotone" dataKey="Gewinn" stroke={C.grn} strokeWidth={2} dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+        <Card>
+          <SH>Letzte Verkäufe</SH>
+          {recent.length===0?<div style={{color:C.muted,fontFamily:"Barlow",fontSize:12,textAlign:"center",padding:"28px 0"}}>Noch keine Verkäufe</div>
+          :<div>{recent.map(s=>(
+            <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.bdr}`}}>
+              <div>
+                <div style={{fontFamily:"Barlow",fontSize:12,color:C.txt}}>{s.productName.split(" ").slice(0,3).join(" ")} ({s.size})</div>
+                <div style={{fontFamily:"Barlow",fontSize:10,color:C.muted}}>{s.date} · {s.customerName||"Anonym"}</div>
+              </div>
+              <div style={{fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,color:C.grn}}>{fmt(s.total)}</div>
+            </div>
+          ))}</div>}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ProdView({ products, setProducts }) {
+  const isMobile = useIsMobile();
+  const [modal,setModal]=useState(null);const [eid,setEid]=useState(null);
+  const [ask,confirmNode]=useConfirm();
+  const E={name:"",category:"",color:"",material:"",sizes:{S:0,M:0,L:0,XL:0,XXL:0},buyPrice:"",sellPrice:"",status:"planned"};
+  const [f,setF]=useState(E);
+  const openAdd=()=>{setF(E);setModal("add");};
+  const openEdit=p=>{setF({...p,buyPrice:String(p.buyPrice),sellPrice:String(p.sellPrice)});setEid(p.id);setModal("edit");};
+  const save=()=>{const item={...f,buyPrice:parseFloat(f.buyPrice)||0,sellPrice:parseFloat(f.sellPrice)||0};if(modal==="add")setProducts(p=>[...p,{...item,id:uid()}]);else setProducts(p=>p.map(x=>x.id===eid?{...item,id:x.id}:x));setModal(null);};
+  const del=id=>ask("Produkt wirklich löschen?",()=>setProducts(p=>p.filter(x=>x.id!==id)));
+  return (
+    <div>
+      {confirmNode}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+        <div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>PRODUKTE</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>{products.length} Produkte</p></div>
+        <Btn onClick={openAdd}><Plus size={13}/> Neu</Btn>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        {products.map(p=>{const ts=Object.values(p.sizes).reduce((a,b)=>a+b,0);return(
+          <Card key={p.id} style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><span style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:C.txt}}>{p.name}</span><Badge color={TP[p.status]}>{TL[p.status]}</Badge></div>
+              <div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginBottom:7}}>{p.category} · {p.color} · {p.material}</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{Object.entries(p.sizes).map(([sz,qty])=><span key={sz} style={{background:C.card2,border:`1px solid ${C.bdr}`,borderRadius:4,padding:"2px 7px",fontFamily:"Barlow Condensed",fontSize:10,color:qty===0?C.dim:C.txt}}>{sz}: {qty}</span>)}</div>
+            </div>
+            <div style={{textAlign:"right",minWidth:130}}>
+              <div style={{fontFamily:"Barlow Condensed",fontSize:12,color:C.muted}}>EK: {fmt(p.buyPrice)}</div>
+              <div style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.txt}}>{fmt(p.sellPrice)}</div>
+              <div style={{fontFamily:"Barlow Condensed",fontSize:12,color:C.grn}}>+{fmt(p.sellPrice-p.buyPrice)}</div>
+              <div style={{fontFamily:"Barlow",fontSize:10,color:C.muted,marginTop:3}}>Lager: {ts} Stk</div>
+            </div>
+            <div style={{display:"flex",gap:5}}>
+              <Btn variant="ghost" sm onClick={()=>openEdit(p)}><Edit2 size={12}/></Btn>
+              <Btn variant="danger" sm onClick={()=>del(p.id)}><Trash2 size={12}/></Btn>
+            </div>
+          </Card>
+        );})}
+        {products.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Noch keine Produkte.</div>}
+      </div>
+      {modal&&<Modal title={modal==="add"?"Neues Produkt":"Produkt bearbeiten"} onClose={()=>setModal(null)} width={620}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Fld label="Name" value={f.name} onChange={v=>setF(x=>({...x,name:v}))} style={{gridColumn:"1/-1"}}/>
+          <Fld label="Kategorie" value={f.category} onChange={v=>setF(x=>({...x,category:v}))}/>
+          <Fld label="Farbe" value={f.color} onChange={v=>setF(x=>({...x,color:v}))}/>
+          <Fld label="Material" value={f.material} onChange={v=>setF(x=>({...x,material:v}))} style={{gridColumn:"1/-1"}}/>
+          <Fld label="EK-Preis (€)" type="number" value={f.buyPrice} onChange={v=>setF(x=>({...x,buyPrice:v}))} placeholder="0.00"/>
+          <Fld label="VK-Preis (€)" type="number" value={f.sellPrice} onChange={v=>setF(x=>({...x,sellPrice:v}))} placeholder="0.00"/>
+          <Fld label="Status" value={f.status} onChange={v=>setF(x=>({...x,status:v}))} options={[{value:"planned",label:"Geplant"},{value:"active",label:"Aktiv"},{value:"sold_out",label:"Ausverkauft"}]} style={{gridColumn:"1/-1"}}/>
+        </div>
+        <div style={{marginTop:14,marginBottom:6}}>
+          <div style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>Bestand pro Größe</div>
+          <div style={{display:"flex",gap:8}}>{["S","M","L","XL","XXL"].map(sz=><Fld key={sz} label={sz} type="number" value={f.sizes[sz]} onChange={v=>setF(x=>({...x,sizes:{...x.sizes,[sz]:parseInt(v)||0}}))} style={{flex:1}}/>)}</div>
+        </div>
+        {f.buyPrice&&f.sellPrice&&<div style={{background:C.card2,borderRadius:6,padding:"9px 12px",marginBottom:14,fontFamily:"Barlow Condensed",fontSize:13,color:C.grn}}>Gewinn: {fmt(parseFloat(f.sellPrice)-parseFloat(f.buyPrice))} / Stück ({((parseFloat(f.sellPrice)-parseFloat(f.buyPrice))/parseFloat(f.sellPrice)*100).toFixed(1)}%)</div>}
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14}}>
+          <Btn variant="ghost" onClick={()=>setModal(null)}>Abbrechen</Btn>
+          <Btn onClick={save}><Check size={13}/> Speichern</Btn>
+        </div>
+      </Modal>}
+    </div>
+  );
+}
+
+function LagerView({ products, setProducts, settings }) {
+  const [rm,setRm]=useState(null);const [rf,setRf]=useState({S:0,M:0,L:0,XL:0,XXL:0});
+  const doRestock=()=>{setProducts(prev=>prev.map(p=>{if(p.id!==rm.id)return p;const ns={...p.sizes};Object.keys(rf).forEach(sz=>{ns[sz]=(ns[sz]||0)+(parseInt(rf[sz])||0);});const ts=Object.values(ns).reduce((a,b)=>a+b,0);return{...p,sizes:ns,status:ts>0?"active":p.status};}));setRm(null);};
+  return (
+    <div>
+      <div style={{marginBottom:22}}><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>LAGER</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Niedrigbestand-Warnung bei ≤ {settings.lowStockThreshold} Stück</p></div>
+      {products.map(p=>{const ts=Object.values(p.sizes).reduce((a,b)=>a+b,0);const low=ts>0&&ts<=settings.lowStockThreshold;return(
+        <Card key={p.id} style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:7}}><span style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:C.txt}}>{p.name}</span>{low&&<Badge color={C.ylw}>Niedrig</Badge>}{ts===0&&<Badge color={C.red}>Ausverkauft</Badge>}</div>
+              <div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginTop:2}}>{p.category} · {p.color}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{textAlign:"right"}}><div style={{fontFamily:"Barlow Condensed",fontSize:22,fontWeight:700,color:low?C.ylw:C.txt}}>{ts}</div><div style={{fontFamily:"Barlow",fontSize:9,color:C.muted}}>Gesamt</div></div>
+              <Btn variant="ghost" sm onClick={()=>{setRm(p);setRf({S:0,M:0,L:0,XL:0,XXL:0});}}><Plus size={12}/> Nachbestellen</Btn>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:7}}>
+            {["S","M","L","XL","XXL"].map(sz=>{const q=p.sizes[sz]||0;const lo=q>0&&q<=settings.lowStockThreshold;return(
+              <div key={sz} style={{background:C.card2,borderRadius:6,padding:"9px",textAlign:"center",border:`1px solid ${lo?C.ylw+"55":C.bdr}`}}>
+                <div style={{fontFamily:"Barlow Condensed",fontSize:10,color:C.muted,marginBottom:3}}>{sz}</div>
+                <div style={{fontFamily:"Barlow Condensed",fontSize:20,fontWeight:700,color:q===0?C.dim:lo?C.ylw:C.txt}}>{q}</div>
+              </div>
+            );})}
+          </div>
+        </Card>
+      );})}
+      {products.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Keine Produkte vorhanden.</div>}
+      {rm&&<Modal title={`Nachbestellen: ${rm.name.split(" ").slice(0,4).join(" ")}`} onClose={()=>setRm(null)}>
+        <div style={{marginBottom:10,fontFamily:"Barlow",fontSize:12,color:C.muted}}>Anzahl hinzufügen pro Größe:</div>
+        <div style={{display:"flex",gap:8,marginBottom:18}}>{["S","M","L","XL","XXL"].map(sz=><Fld key={sz} label={sz} type="number" value={rf[sz]} onChange={v=>setRf(x=>({...x,[sz]:parseInt(v)||0}))} style={{flex:1}}/>)}</div>
+        <div style={{display:"flex",gap:9,justifyContent:"flex-end"}}><Btn variant="ghost" onClick={()=>setRm(null)}>Abbrechen</Btn><Btn onClick={doRestock}><Check size={13}/> Einbuchen</Btn></div>
+      </Modal>}
+    </div>
+  );
+}
+
+function SaleView({ products, setProducts, sales, setSales, customers, setCustomers }) {
+  const isMobile = useIsMobile();
+  const [f,setF]=useState({productId:"",size:"",quantity:"1",price:"",payment:"bar",customerName:""});
+  const [ok,setOk]=useState(false);
+  const sp=products.find(p=>p.id===f.productId)||null;
+  const avSizes=sp?Object.entries(sp.sizes).filter(([,q])=>q>0).map(([s])=>s):[];
+  const handleProduct=pid=>{const found=products.find(p=>p.id===pid);setF(x=>({...x,productId:pid,size:"",price:found?String(found.sellPrice):""}));};
+  const can=f.productId&&f.size&&parseInt(f.quantity)>0&&parseFloat(f.price)>0;
+  const submit=()=>{
+    if(!can||!sp)return;
+    const q=parseInt(f.quantity),p=parseFloat(f.price);
+    const sale={id:uid(),productId:sp.id,productName:sp.name,size:f.size,quantity:q,price:p,total:q*p,profit:q*(p-sp.buyPrice),payment:f.payment,customerName:f.customerName.trim(),date:tod(),status:"paid"};
+    setSales(prev=>[sale,...prev]);
+    setProducts(prev=>prev.map(pr=>{if(pr.id!==sp.id)return pr;const ns={...pr.sizes,[f.size]:Math.max(0,(pr.sizes[f.size]||0)-q)};const ts=Object.values(ns).reduce((a,b)=>a+b,0);return{...pr,sizes:ns,status:ts===0?"sold_out":pr.status==="planned"?"active":pr.status};}));
+    if(f.customerName.trim())setCustomers(prev=>{const ex=prev.find(c=>c.name.toLowerCase()===f.customerName.trim().toLowerCase());if(ex)return prev;return[...prev,{id:uid(),name:f.customerName.trim(),email:"",phone:"",notes:"",createdAt:tod()}];});
+    setF({productId:"",size:"",quantity:"1",price:"",payment:"bar",customerName:""});
+    setOk(true);setTimeout(()=>setOk(false),3000);
+  };
+  return (
+    <div>
+      <div style={{marginBottom:22}}><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>VERKAUF EINTRAGEN</h2></div>
+      {ok&&<div style={{background:"#081a0e",border:`1px solid ${C.grn}44`,borderRadius:7,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Check size={14} color={C.grn}/><span style={{fontFamily:"Barlow",fontSize:12,color:C.grn}}>Verkauf gespeichert! Lagerbestand wurde aktualisiert.</span></div>}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14,maxWidth:660}}>
+        <Fld label="Produkt" value={f.productId} onChange={handleProduct} options={[{value:"",label:"– Produkt wählen –"},...products.map(p=>({value:p.id,label:p.name.length>38?p.name.slice(0,38)+"…":p.name}))]} style={{gridColumn:"1/-1"}}/>
+        {sp&&<div style={{gridColumn:"1/-1",background:C.card2,borderRadius:6,padding:"9px 12px",display:"flex",gap:18,fontFamily:"Barlow Condensed",fontSize:13}}><span style={{color:C.muted}}>VK: <span style={{color:C.txt}}>{fmt(sp.sellPrice)}</span></span><span style={{color:C.muted}}>EK: <span style={{color:C.txt}}>{fmt(sp.buyPrice)}</span></span><span style={{color:C.muted}}>Gewinn/Stk: <span style={{color:C.grn}}>{fmt(sp.sellPrice-sp.buyPrice)}</span></span></div>}
+        <Fld label="Größe" value={f.size} onChange={v=>setF(x=>({...x,size:v}))} options={[{value:"",label:"– Größe –"},...avSizes.map(s=>({value:s,label:`${s} (${sp?.sizes[s]} verfügbar)`}))]}/>
+        <Fld label="Menge" type="number" value={f.quantity} onChange={v=>setF(x=>({...x,quantity:v}))}/>
+        <Fld label="Verkaufspreis (€)" type="number" value={f.price} onChange={v=>setF(x=>({...x,price:v}))} placeholder="0.00"/>
+        <Fld label="Zahlungsart" value={f.payment} onChange={v=>setF(x=>({...x,payment:v}))} options={[{value:"bar",label:"Bar"},{value:"paypal",label:"PayPal"},{value:"ueberweisung",label:"Überweisung"},{value:"klarna",label:"Klarna"},{value:"kreditkarte",label:"Kreditkarte"}]}/>
+        <Fld label="Kundenname (optional)" value={f.customerName} onChange={v=>setF(x=>({...x,customerName:v}))} placeholder="Max Mustermann" style={{gridColumn:"1/-1"}}/>
+        {f.price&&f.quantity&&<div style={{gridColumn:"1/-1",background:C.card2,borderRadius:7,padding:"12px 14px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontFamily:"Barlow",fontSize:12,color:C.muted}}>Gesamtbetrag</span><span style={{fontFamily:"Barlow Condensed",fontSize:20,fontWeight:700,color:C.txt}}>{fmt((parseFloat(f.price)||0)*(parseInt(f.quantity)||0))}</span></div>
+          {sp&&<div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontFamily:"Barlow",fontSize:12,color:C.muted}}>Gewinn</span><span style={{fontFamily:"Barlow Condensed",fontSize:14,fontWeight:600,color:C.grn}}>{fmt((parseFloat(f.price)-sp.buyPrice)*(parseInt(f.quantity)||0))}</span></div>}
+        </div>}
+        <Btn onClick={submit} disabled={!can} style={{gridColumn:"1/-1"}}><Check size={13}/> Verkauf eintragen</Btn>
+      </div>
+    </div>
+  );
+}
+
+function OrdersView({ sales, setSales }) {
+  const [filter,setFilter]=useState("all");const [search,setSearch]=useState("");
+  const [ask,confirmNode]=useConfirm();
+  const SC={paid:C.grn,open:C.ylw,cancelled:C.red};const SL={paid:"Bezahlt",open:"Offen",cancelled:"Storniert"};
+  const filtered=sales.filter(s=>filter==="all"||s.status===filter).filter(s=>!search||s.productName.toLowerCase().includes(search.toLowerCase())||(s.customerName||"").toLowerCase().includes(search.toLowerCase()));
+  const del=id=>ask("Bestellung wirklich löschen?",()=>setSales(p=>p.filter(s=>s.id!==id)));
+  const setSt=(id,st)=>setSales(p=>p.map(s=>s.id===id?{...s,status:st}:s));
+  return (
+    <div>
+      {confirmNode}
+      <div style={{marginBottom:22}}><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>BESTELLVERLAUF</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>{sales.length} Bestellungen</p></div>
+      <div style={{display:"flex",gap:9,marginBottom:14,flexWrap:"wrap"}}>
+        <div style={{position:"relative",flex:1,minWidth:180}}><Search size={13} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Suchen…" style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"7px 10px 7px 29px",fontFamily:"Barlow",fontSize:12,width:"100%"}}/></div>
+        {["all","paid","open","cancelled"].map(fv=><Btn key={fv} variant={filter===fv?"primary":"ghost"} sm onClick={()=>setFilter(fv)}>{fv==="all"?"Alle":SL[fv]}</Btn>)}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        {filtered.length===0?<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Keine Bestellungen gefunden</div>
+        :filtered.map(s=>(
+          <Card key={s.id} style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}><span style={{fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,color:C.txt}}>{s.productName.split(" ").slice(0,4).join(" ")} · Gr. {s.size}</span><Badge color={SC[s.status]}>{SL[s.status]}</Badge>{s.source==="shopify"&&<Badge color="#95bf47">Shopify ✓</Badge>}</div>
+              <div style={{fontFamily:"Barlow",fontSize:11,color:C.muted}}>{s.date} · {s.quantity}x · {s.payment} · {s.customerName||"Anonym"}</div>
+            </div>
+            <div style={{textAlign:"right",minWidth:110}}><div style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.txt}}>{fmt(s.total)}</div><div style={{fontFamily:"Barlow Condensed",fontSize:11,color:C.grn}}>+{fmt(s.profit)}</div></div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <select value={s.status} onChange={e=>setSt(s.id,e.target.value)} style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"5px 7px",fontFamily:"Barlow",fontSize:11,cursor:"pointer"}}>
+                <option value="paid">Bezahlt</option><option value="open">Offen</option><option value="cancelled">Storniert</option>
+              </select>
+              <Btn variant="danger" sm onClick={()=>del(s.id)}><Trash2 size={11}/></Btn>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AusgView({ expenses, setExpenses, invoices=[] }) {
+  const [show,setShow]=useState(false);
+  const E={category:"Wareneinkauf",amount:"",date:tod(),note:""};const [f,setF]=useState(E);
+  const CATS=["Wareneinkauf","Versandmaterial","Werbung","Shopify","Domain","Sonstiges"];
+  const CC={Wareneinkauf:C.blu,Versandmaterial:C.ylw,Werbung:C.red,Shopify:"#6366f1",Domain:C.grn,Sonstiges:C.muted};
+  const add=()=>{if(!f.amount)return;setExpenses(p=>[{...f,id:uid(),amount:parseFloat(f.amount)},...p]);setF(E);setShow(false);};
+  const del=id=>setExpenses(p=>p.filter(e=>e.id!==id));
+  const total=expenses.reduce((a,e)=>a+e.amount,0);
+  const [viewImg,setViewImg]=useState(null);
+  const getInvoice=id=>invoices.find(i=>i.id===id);
+  return (
+    <div>
+      {viewImg&&<div onClick={()=>setViewImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20}}><div onClick={e=>e.stopPropagation()} style={{position:"relative",maxWidth:"90vw",maxHeight:"90vh"}}><button onClick={()=>setViewImg(null)} style={{position:"absolute",top:-14,right:-14,background:"#e11d48",border:"none",borderRadius:"50%",width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={14} color="#fff"/></button><img src={viewImg.src} alt={viewImg.fileName} style={{maxWidth:"100%",maxHeight:"85vh",borderRadius:8,display:"block",objectFit:"contain"}}/><div style={{fontFamily:"Barlow",fontSize:11,color:"#888",textAlign:"center",marginTop:8}}>{viewImg.fileName}</div></div></div>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}><div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>AUSGABEN</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Gesamt: {fmt(total)}</p></div><Btn onClick={()=>setShow(s=>!s)}><Plus size={13}/> Ausgabe</Btn></div>
+      {show&&<Card style={{marginBottom:14}}><SH>Neue Ausgabe</SH><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:11,marginBottom:11}}><Fld label="Kategorie" value={f.category} onChange={v=>setF(x=>({...x,category:v}))} options={CATS}/><Fld label="Betrag (€)" type="number" value={f.amount} onChange={v=>setF(x=>({...x,amount:v}))} placeholder="0.00"/><Fld label="Datum" type="date" value={f.date} onChange={v=>setF(x=>({...x,date:v}))}/><Fld label="Notiz" value={f.note} onChange={v=>setF(x=>({...x,note:v}))} placeholder="Beschreibung…" style={{gridColumn:"1/-1"}}/></div><div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" sm onClick={()=>setShow(false)}>Abbrechen</Btn><Btn sm onClick={add}><Check size={12}/> Speichern</Btn></div></Card>}
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        {expenses.map(e=>(
+          <Card key={e.id} style={{display:"flex",alignItems:"center",gap:12}}><div style={{background:(CC[e.category]||C.muted)+"22",borderRadius:6,padding:7}}><DollarSign size={14} color={CC[e.category]||C.muted}/></div><div style={{flex:1}}><Badge color={CC[e.category]||C.muted}>{e.category}</Badge><div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginTop:3}}>{e.date}{e.note?` · ${e.note}`:""}</div></div><div style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.red}}>{fmt(e.amount)}</div>{getInvoice(e.id)?.image&&<button onClick={()=>setViewImg({src:getInvoice(e.id).image,fileName:getInvoice(e.id).fileName})} style={{background:"#111",border:"1px solid #222",color:"#888",borderRadius:5,padding:"5px 8px",cursor:"pointer",display:"flex",alignItems:"center"}}><Eye size={11}/></button>}<Btn variant="danger" sm onClick={()=>del(e.id)}><Trash2 size={11}/></Btn></Card>
+        ))}
+        {expenses.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Noch keine Ausgaben erfasst</div>}
+      </div>
+    </div>
+  );
+}
+
+function StatsView({ sales, products, expenses }) {
+  const isMobile = useIsMobile();
+  const now=new Date();
+  const TT={contentStyle:{background:C.card2,border:`1px solid ${C.bdr}`,borderRadius:5,fontFamily:"Barlow",fontSize:11}};
+  const md=Array.from({length:12},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-11+i,1);const ms=sales.filter(s=>{const sd=new Date(s.date);return sd.getMonth()===d.getMonth()&&sd.getFullYear()===d.getFullYear()&&s.status!=="cancelled";});const me=expenses.filter(e=>{const ed=new Date(e.date);return ed.getMonth()===d.getMonth()&&ed.getFullYear()===d.getFullYear();});return{name:MON[d.getMonth()],Umsatz:+ms.reduce((a,s)=>a+s.total,0).toFixed(2),Gewinn:+ms.reduce((a,s)=>a+s.profit,0).toFixed(2),Ausgaben:+me.reduce((a,e)=>a+e.amount,0).toFixed(2)};});
+  const bP={};sales.filter(s=>s.status!=="cancelled").forEach(s=>{const k=s.productName.split(" ").slice(0,4).join(" ");bP[k]=(bP[k]||0)+s.total;});
+  const pD=Object.entries(bP).map(([n,v])=>({name:n,value:+v.toFixed(2)})).sort((a,b)=>b.value-a.value);
+  const bC={};expenses.forEach(e=>{bC[e.category]=(bC[e.category]||0)+e.amount;});
+  const eD=Object.entries(bC).map(([n,v])=>({name:n,value:+v.toFixed(2)}));
+  const bS={S:0,M:0,L:0,XL:0,XXL:0};sales.filter(s=>s.status!=="cancelled").forEach(s=>{bS[s.size]=(bS[s.size]||0)+s.quantity;});
+  const sD=Object.entries(bS).map(([n,v])=>({name:n,value:v}));
+  const PC=[C.red,C.blu,C.grn,C.ylw,"#6366f1",C.muted];
+  return (
+    <div>
+      <div style={{marginBottom:22}}><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>STATISTIKEN</h2></div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14}}>
+        <Card style={{gridColumn:"1/-1"}}><SH>Umsatz, Gewinn & Ausgaben — 12 Monate</SH><ResponsiveContainer width="100%" height={220}><LineChart data={md}><CartesianGrid strokeDasharray="3 3" stroke={C.bdr}/><XAxis dataKey="name" tick={{fill:C.muted,fontSize:10,fontFamily:"Barlow"}}/><YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"Barlow"}}/><Tooltip {...TT}/><Legend wrapperStyle={{fontFamily:"Barlow",fontSize:11}}/><Line type="monotone" dataKey="Umsatz" stroke={C.blu} strokeWidth={2} dot={false}/><Line type="monotone" dataKey="Gewinn" stroke={C.grn} strokeWidth={2} dot={false}/><Line type="monotone" dataKey="Ausgaben" stroke={C.red} strokeWidth={2} dot={false}/></LineChart></ResponsiveContainer></Card>
+        <Card><SH>Umsatz nach Produkt</SH>{pD.length===0?<div style={{color:C.muted,fontFamily:"Barlow",fontSize:12,textAlign:"center",padding:"28px 0"}}>Keine Daten</div>:<ResponsiveContainer width="100%" height={200}><BarChart data={pD} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke={C.bdr}/><XAxis type="number" tick={{fill:C.muted,fontSize:9,fontFamily:"Barlow"}}/><YAxis dataKey="name" type="category" tick={{fill:C.muted,fontSize:9,fontFamily:"Barlow"}} width={120}/><Tooltip {...TT}/><Bar dataKey="value" fill={C.blu} radius={[0,4,4,0]}/></BarChart></ResponsiveContainer>}</Card>
+        <Card><SH>Ausgaben nach Kategorie</SH>{eD.length===0?<div style={{color:C.muted,fontFamily:"Barlow",fontSize:12,textAlign:"center",padding:"28px 0"}}>Keine Daten</div>:<ResponsiveContainer width="100%" height={200}><PieChart><Pie data={eD} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={{stroke:C.muted,strokeWidth:1}}>{eD.map((_,i)=><Cell key={i} fill={PC[i%PC.length]}/>)}</Pie><Tooltip {...TT}/></PieChart></ResponsiveContainer>}</Card>
+        <Card><SH>Verkaufte Größen</SH><ResponsiveContainer width="100%" height={200}><BarChart data={sD}><CartesianGrid strokeDasharray="3 3" stroke={C.bdr}/><XAxis dataKey="name" tick={{fill:C.muted,fontSize:11,fontFamily:"Barlow"}}/><YAxis tick={{fill:C.muted,fontSize:11,fontFamily:"Barlow"}}/><Tooltip {...TT}/><Bar dataKey="value" fill={C.red} radius={[4,4,0,0]}/></BarChart></ResponsiveContainer></Card>
+        <Card><SH>Lagerbestand nach Größe</SH><ResponsiveContainer width="100%" height={200}><BarChart data={["S","M","L","XL","XXL"].map(sz=>({name:sz,value:products.reduce((a,p)=>a+(p.sizes[sz]||0),0)}))}><CartesianGrid strokeDasharray="3 3" stroke={C.bdr}/><XAxis dataKey="name" tick={{fill:C.muted,fontSize:11,fontFamily:"Barlow"}}/><YAxis tick={{fill:C.muted,fontSize:11,fontFamily:"Barlow"}}/><Tooltip {...TT}/><Bar dataKey="value" fill={C.grn} radius={[4,4,0,0]}/></BarChart></ResponsiveContainer></Card>
+      </div>
+    </div>
+  );
+}
+
+function ReportView({ sales, expenses }) {
+  const isMobile = useIsMobile();
+  const now=new Date();
+  const [mo,setMo]=useState(now.getMonth());const [yr,setYr]=useState(now.getFullYear());
+  const ms=sales.filter(s=>{const d=new Date(s.date);return d.getMonth()===mo&&d.getFullYear()===yr&&s.status!=="cancelled";});
+  const me=expenses.filter(e=>{const d=new Date(e.date);return d.getMonth()===mo&&d.getFullYear()===yr;});
+  const rev=ms.reduce((a,s)=>a+s.total,0);const gP=ms.reduce((a,s)=>a+s.profit,0);const totE=me.reduce((a,e)=>a+e.amount,0);const net=gP-totE;
+  const TH=({c})=><th style={{fontFamily:"Barlow Condensed",fontSize:10,color:C.muted,textAlign:"left",padding:"5px 7px",fontWeight:600,letterSpacing:"0.5px"}}>{c}</th>;
+  const TD=({c,col})=><td style={{fontFamily:"Barlow",fontSize:11,color:col||C.txt,padding:"6px 7px",borderBottom:`1px solid ${C.bdr}22`}}>{c}</td>;
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+        <h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>MONATSBERICHT</h2>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <select value={mo} onChange={e=>setMo(parseInt(e.target.value))} style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"6px 10px",fontFamily:"Barlow",fontSize:12}}>{Array.from({length:12},(_,i)=><option key={i} value={i}>{MON[i]}</option>)}</select>
+          <select value={yr} onChange={e=>setYr(parseInt(e.target.value))} style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"6px 10px",fontFamily:"Barlow",fontSize:12}}>{[2024,2025,2026,2027].map(y=><option key={y} value={y}>{y}</option>)}</select>
+          <Btn variant="ghost" sm onClick={()=>printReport({sales,expenses,mo,yr})}><Printer size={13}/> Drucken / PDF</Btn>
+        </div>
+      </div>
+      <Card>
+        <div style={{fontFamily:"Bebas Neue",fontSize:24,color:C.txt,letterSpacing:"3px",marginBottom:2}}>DOF – DISCIPLINE OVER FEELINGS</div>
+        <div style={{fontFamily:"Barlow Condensed",fontSize:13,color:C.muted,marginBottom:22}}>Monatsbericht {MON[mo]} {yr} · dofclothes.de</div>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:22}}>
+          {[{l:"Umsatz",v:fmt(rev),c:C.blu},{l:"Rohgewinn",v:fmt(gP),c:C.grn},{l:"Ausgaben",v:fmt(totE),c:C.red},{l:"Nettogewinn",v:fmt(net),c:net>=0?C.grn:C.red}].map(x=><div key={x.l} style={{background:C.card2,borderRadius:7,padding:"12px 14px",textAlign:"center"}}><div style={{fontFamily:"Barlow",fontSize:10,color:C.muted,marginBottom:5}}>{x.l}</div><div style={{fontFamily:"Barlow Condensed",fontSize:20,fontWeight:700,color:x.c}}>{x.v}</div></div>)}
+        </div>
+        <SH>Verkäufe ({ms.length})</SH>
+        <table style={{width:"100%",borderCollapse:"collapse",marginBottom:20}}><thead><tr style={{borderBottom:`1px solid ${C.bdr}`}}>{["Datum","Produkt","Gr.","Menge","Betrag","Gewinn","Zahlung","Kunde"].map(h=><TH key={h} c={h}/>)}</tr></thead><tbody>{ms.map(s=><tr key={s.id}><TD c={s.date} col={C.muted}/><TD c={s.productName.split(" ").slice(0,3).join(" ")}/><TD c={s.size}/><TD c={s.quantity}/><TD c={fmt(s.total)}/><TD c={fmt(s.profit)} col={C.grn}/><TD c={s.payment} col={C.muted}/><TD c={s.customerName||"–"} col={C.muted}/></tr>)}{ms.length===0&&<tr><td colSpan={8} style={{fontFamily:"Barlow",fontSize:12,color:C.muted,textAlign:"center",padding:"16px 0"}}>Keine Verkäufe</td></tr>}</tbody></table>
+        <SH>Ausgaben ({me.length})</SH>
+        <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{borderBottom:`1px solid ${C.bdr}`}}>{["Datum","Kategorie","Betrag","Notiz"].map(h=><TH key={h} c={h}/>)}</tr></thead><tbody>{me.map(e=><tr key={e.id}><TD c={e.date} col={C.muted}/><TD c={e.category}/><TD c={fmt(e.amount)} col={C.red}/><TD c={e.note||"–"} col={C.muted}/></tr>)}{me.length===0&&<tr><td colSpan={4} style={{fontFamily:"Barlow",fontSize:12,color:C.muted,textAlign:"center",padding:"16px 0"}}>Keine Ausgaben</td></tr>}</tbody></table>
+      </Card>
+    </div>
+  );
+}
+
+function KundView({ customers, setCustomers, sales }) {
+  const [modal,setModal]=useState(null);const [eid,setEid]=useState(null);const [search,setSearch]=useState("");
+  const [ask,confirmNode]=useConfirm();
+  const E={name:"",email:"",phone:"",notes:""};const [f,setF]=useState(E);
+  const openAdd=()=>{setF(E);setModal("add");};const openEdit=c=>{setF(c);setEid(c.id);setModal("edit");};
+  const save=()=>{if(modal==="add")setCustomers(p=>[...p,{...f,id:uid(),createdAt:tod()}]);else setCustomers(p=>p.map(c=>c.id===eid?{...c,...f}:c));setModal(null);};
+  const del=id=>ask("Kunden wirklich löschen?",()=>setCustomers(p=>p.filter(c=>c.id!==id)));
+  const gs=c=>{const cs=sales.filter(s=>s.customerName&&s.customerName.toLowerCase()===c.name.toLowerCase()&&s.status!=="cancelled");return{n:cs.length,r:cs.reduce((a,s)=>a+s.total,0)};};
+  const fil=customers.filter(c=>!search||c.name.toLowerCase().includes(search.toLowerCase())||(c.email||"").toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div>
+      {confirmNode}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+        <div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>KUNDEN</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>{customers.length} Kunden</p></div>
+        <div style={{display:"flex",gap:9}}><div style={{position:"relative"}}><Search size={12} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Suchen…" style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"7px 10px 7px 28px",fontFamily:"Barlow",fontSize:12,width:180}}/></div><Btn onClick={openAdd}><Plus size={13}/> Neu</Btn></div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {fil.map(c=>{const st=gs(c);return(
+          <Card key={c.id} style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:38,height:38,borderRadius:"50%",background:C.red+"22",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontFamily:"Bebas Neue",fontSize:17,color:C.red}}>{c.name[0]?.toUpperCase()}</span></div>
+            <div style={{flex:1}}><div style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:C.txt,marginBottom:2}}>{c.name}</div><div style={{fontFamily:"Barlow",fontSize:11,color:C.muted}}>{c.email||"–"}{c.phone?` · ${c.phone}`:""}</div>{c.notes&&<div style={{fontFamily:"Barlow",fontSize:11,color:C.dim,marginTop:1,fontStyle:"italic"}}>{c.notes}</div>}</div>
+            <div style={{textAlign:"right",minWidth:110}}><div style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.txt}}>{fmt(st.r)}</div><div style={{fontFamily:"Barlow",fontSize:10,color:C.muted}}>{st.n} Käufe</div></div>
+            <div style={{display:"flex",gap:5}}><Btn variant="ghost" sm onClick={()=>openEdit(c)}><Edit2 size={12}/></Btn><Btn variant="danger" sm onClick={()=>del(c.id)}><Trash2 size={12}/></Btn></div>
+          </Card>
+        );})}
+        {fil.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>{search?"Keine Kunden gefunden":"Noch keine Kunden erfasst"}</div>}
+      </div>
+      {modal&&<Modal title={modal==="add"?"Neuer Kunde":"Kunde bearbeiten"} onClose={()=>setModal(null)}><div style={{display:"grid",gap:12}}><Fld label="Name" value={f.name} onChange={v=>setF(x=>({...x,name:v}))} placeholder="Max Mustermann"/><Fld label="E-Mail" type="email" value={f.email} onChange={v=>setF(x=>({...x,email:v}))} placeholder="max@example.com"/><Fld label="Telefon" value={f.phone} onChange={v=>setF(x=>({...x,phone:v}))} placeholder="+49…"/><Fld label="Notizen" value={f.notes} onChange={v=>setF(x=>({...x,notes:v}))} placeholder="Interne Notizen…"/></div><div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14}}><Btn variant="ghost" onClick={()=>setModal(null)}>Abbrechen</Btn><Btn onClick={save}><Check size={13}/> Speichern</Btn></div></Modal>}
+    </div>
+  );
+}
+
+function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, setCustomers }) {
+  const isMobile = useIsMobile();
+  const [thr,setThr]=useState(String(settings.lowStockThreshold));
+  const [ask,confirmNode]=useConfirm();
+  const save=()=>setSettings(s=>({...s,lowStockThreshold:parseInt(thr)||3}));
+  const reset=(what,fn)=>ask(`Wirklich alle ${what} unwiderruflich löschen?`,fn);
+  return (
+    <div>
+      {confirmNode}
+      <div style={{marginBottom:22}}><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>EINSTELLUNGEN</h2></div>
+      <div style={{display:"grid",gap:14,maxWidth:540}}>
+        <Card><SH>Lager-Einstellungen</SH><div style={{display:"flex",alignItems:"flex-end",gap:11,marginBottom:10}}><Fld label="Niedrigbestand-Warnung (Stück)" type="number" value={thr} onChange={setThr} style={{flex:1}}/><Btn onClick={save}><Check size={13}/> Speichern</Btn></div><p style={{fontFamily:"Barlow",fontSize:11,color:C.muted}}>Warnung bei Gesamtbestand ≤ diesem Wert.</p></Card>
+        <Card><SH>Daten zurücksetzen</SH><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginBottom:12}}>Achtung: Diese Aktionen können nicht rückgängig gemacht werden.</p>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:8}}>
+            <Btn variant="danger" onClick={()=>reset("Verkäufe",()=>setSales([]))}><Trash2 size={12}/> Verkäufe löschen</Btn>
+            <Btn variant="danger" onClick={()=>reset("Ausgaben",()=>setExpenses([]))}><Trash2 size={12}/> Ausgaben löschen</Btn>
+            <Btn variant="danger" onClick={()=>reset("Kunden",()=>setCustomers([]))}><Trash2 size={12}/> Kunden löschen</Btn>
+            <Btn variant="danger" onClick={()=>reset("Produkte",()=>setProducts(INIT_PRODUCTS))}><Trash2 size={12}/> Produkte reset</Btn>
+            <Btn variant="danger" onClick={()=>reset("Daten",()=>{setProducts(INIT_PRODUCTS);setSales([]);setExpenses([]);setCustomers([]);})} style={{gridColumn:"1/-1",background:"#2a0808"}}><Trash2 size={12}/> ALLE DATEN ZURÜCKSETZEN</Btn>
+          </div>
+        </Card>
+        <Card><SH>Über DOFClothes</SH><div style={{fontFamily:"Barlow",fontSize:12,color:C.muted,lineHeight:1.7}}><strong style={{color:C.txt,fontFamily:"Barlow Condensed",fontSize:14,letterSpacing:"0.5px"}}>DOFClothes Business Dashboard</strong><br/>Internes Management-Tool für dofclothes.de<br/>Daten werden in der Cloud gespeichert (Supabase) — überall verfügbar.</div></Card>
+      </div>
+    </div>
+  );
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────
+const NAV=[
+  {id:"dashboard",label:"Dashboard",    Icon:Home},
+  {id:"products", label:"Produkte",     Icon:Package},
+  {id:"inventory",label:"Lager",        Icon:Archive},
+  {id:"sale",     label:"Verkauf",      Icon:ShoppingCart},
+  {id:"orders",   label:"Bestellungen", Icon:Receipt},
+  {id:"expenses", label:"Ausgaben",     Icon:DollarSign},
+  {id:"stats",    label:"Statistiken",  Icon:BarChart2},
+  {id:"report",   label:"Monatsbericht",Icon:FileText},
+  {id:"customers",label:"Kunden",       Icon:Users},
+  {id:"settings",   label:"Einstellungen",Icon:Settings},
+  {id:"rechnungen", label:"Rechnungen",    Icon:Upload},
+];
+
+function Sidebar({ active, setActive, lowN, onLogout, pushStatus, onPush, isMobile, isOpen, onClose }) {
+  return (
+    <aside style={{
+      width:206, background:C.panel, borderRight:`1px solid ${C.bdr}`,
+      display:"flex", flexDirection:"column", flexShrink:0, overflowY:"auto",
+      ...(isMobile ? {
+        position:"fixed", top:0, left: isOpen ? 0 : -220, height:"100vh",
+        zIndex:999, transition:"left 0.25s ease", boxShadow: isOpen ? "4px 0 24px rgba(0,0,0,0.6)" : "none"
+      } : {
+        position:"sticky", top:0, height:"100vh", minHeight:"100vh"
+      })
+    }}>
+      <div style={{padding:"18px 16px 14px",borderBottom:`1px solid ${C.bdr}`}}>
+        <div style={{fontFamily:"Bebas Neue",fontSize:24,letterSpacing:"4px",color:C.txt,lineHeight:1}}>DOFCLOTHES</div>
+        <div style={{fontFamily:"Barlow Condensed",fontSize:9,color:C.red,letterSpacing:"2px",marginTop:2,fontWeight:700}}>BUSINESS DASHBOARD</div>
+      </div>
+      <nav style={{flex:1,padding:"8px 6px"}}>
+        {NAV.map(({id,label,Icon})=>{const on=active===id;return(
+          <button key={id} onClick={()=>setActive(id)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:"8px 9px",borderRadius:6,marginBottom:1,background:on?C.red+"1e":"transparent",border:on?`1px solid ${C.red}33`:"1px solid transparent",color:on?C.txt:C.muted,cursor:"pointer",transition:"background 0.1s",textAlign:"left"}}>
+            <Icon size={14} color={on?C.red:C.muted}/>
+            <span style={{fontFamily:"Barlow Condensed",fontSize:13,fontWeight:on?700:500,letterSpacing:"0.3px",flex:1}}>{label}</span>
+            {id==="inventory"&&lowN>0&&<span style={{background:C.ylw,color:"#000",borderRadius:9,padding:"1px 5px",fontSize:9,fontFamily:"Barlow Condensed",fontWeight:700}}>{lowN}</span>}
+          </button>
+        );})}
+      </nav>
+      <div style={{padding:"10px 14px",borderTop:`1px solid ${C.bdr}`}}>
+        <div style={{fontFamily:"Barlow",fontSize:9,color:C.dim}}>dofclothes.de</div>
+        <div style={{fontFamily:"Barlow Condensed",fontSize:8,color:C.dim,letterSpacing:"0.5px",marginTop:1}}>DISCIPLINE OVER FEELINGS</div>
+        <button onClick={onLogout} style={{marginTop:8,width:"100%",background:"transparent",border:`1px solid ${C.bdr}`,color:C.dim,borderRadius:5,padding:"5px",fontFamily:"Barlow Condensed",fontSize:10,letterSpacing:"0.5px",cursor:"pointer"}}>AUSLOGGEN</button>
+        {pushStatus==="granted"
+          ?<div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,padding:"4px 6px"}}><Bell size={10} color="#22c55e"/><span style={{fontFamily:"Barlow Condensed",fontSize:9,color:"#22c55e",letterSpacing:"0.5px"}}>PUSH AKTIV</span></div>
+          :pushStatus!=="unsupported"&&<button onClick={onPush} style={{marginTop:6,width:"100%",background:"transparent",border:`1px solid #e11d4833`,color:"#e11d48",borderRadius:5,padding:"5px",fontFamily:"Barlow Condensed",fontSize:9,letterSpacing:"0.5px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}><Smartphone size={9}/> APP INSTALLIEREN</button>}
+      </div>
+    </aside>
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────
+export default function App() {
+  const [authed, setAuthed] = useState(() => localStorage.getItem("dof_auth") === "1");
+  const [products, setProducts, p0] = useDB("dof_products",  INIT_PRODUCTS);
+  const [sales,    setSales,    p1] = useDB("dof_sales",     []);
+  const [expenses, setExpenses, p2] = useDB("dof_expenses",  []);
+  const [customers,setCustomers,p3] = useDB("dof_customers", []);
+  const [settings, setSettings, p4] = useDB("dof_settings",  { lowStockThreshold:3 });
+  const [invoices, setInvoices,  p5] = useDB("dof_invoices",   []);
+  const [active, setActive] = useState("dashboard");
+  const [sideOpen, setSideOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const { status: pushStatus, subscribe: pushSubscribe } = usePush();
+
+  const ready = p0 && p1 && p2 && p3 && p4 && p5;
+  const lowN  = products.filter(p=>{const t=Object.values(p.sizes).reduce((a,b)=>a+b,0);return t>0&&t<=settings.lowStockThreshold;}).length;
+  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices };
+
+  const VIEWS = {
+    dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
+    sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
+    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>,
+    settings:<EinstView {...vp}/>,
+    rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
+  };
+
+  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
+
+  if (!ready) return (
+    <div style={{background:C.bg,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+      <div style={{fontFamily:"Bebas Neue",fontSize:32,letterSpacing:"6px",color:C.txt}}>DOFCLOTHES</div>
+      <div style={{display:"flex",alignItems:"center",gap:8,color:C.muted,fontFamily:"Barlow",fontSize:13}}>
+        <RefreshCw size={14} style={{animation:"spin 1s linear infinite"}}/> Verbinde mit Datenbank…
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  return (
+    <div style={{background:C.bg,minHeight:"100vh",display:"flex",color:C.txt}}>
+      {/* Mobile overlay */}
+      {isMobile && sideOpen && (
+        <div onClick={() => setSideOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:998}}/>
+      )}
+      <Sidebar
+        active={active}
+        setActive={id => { setActive(id); setSideOpen(false); }}
+        lowN={lowN}
+        onLogout={() => { localStorage.removeItem("dof_auth"); setAuthed(false); }}
+        pushStatus={pushStatus}
+        onPush={pushSubscribe}
+        isMobile={isMobile}
+        isOpen={sideOpen}
+        onClose={() => setSideOpen(false)}
+      />
+      <main style={{flex:1,overflowY:"auto",padding:isMobile?"14px":"26px 28px",paddingTop:isMobile?"0":"26px",minWidth:0}}>
+        {isMobile && (
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,paddingTop:"env(safe-area-inset-top, 50px)",marginTop:8}}>
+            <button onClick={() => setSideOpen(true)} style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:7,padding:"10px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,letterSpacing:"1px"}}>
+              <span style={{fontSize:18,lineHeight:1}}>☰</span> MENÜ
+            </button>
+            <div style={{fontFamily:"Bebas Neue",fontSize:22,color:C.txt,letterSpacing:"3px"}}>DOFCLOTHES</div>
+          </div>
+        )}
+        {VIEWS[active]}
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,24 @@
+{
+  "name": "DOFClothes \u2013 Business Dashboard",
+  "short_name": "DOFClothes",
+  "description": "Internes Business Dashboard f\u00fcr DOFClothes \u2013 Discipline Over Feelings",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#e11d48",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
