@@ -191,8 +191,13 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20}}>
           <div style={{background:C2.panel,border:`1px solid ${C2.bdr}`,borderRadius:12,padding:"24px",width:340,maxWidth:"90vw"}}>
             <div style={{fontFamily:"Barlow Condensed",fontSize:16,fontWeight:700,color:C2.txt,marginBottom:6}}>Gemini API Key</div>
+            <div style={{fontFamily:"Barlow",fontSize:12,color:C2.muted,marginBottom:10}}>
+              <strong style={{color:C2.txt,fontFamily:"Barlow Condensed",fontSize:13}}>Option 1 — Groq (100% kostenlos, empfohlen):</strong><br/>
+              <span style={{color:"#22c55e"}}>console.groq.com</span> → "Create API Key" → Key fängt mit <strong style={{color:C2.txt}}>gsk_</strong> an
+            </div>
             <div style={{fontFamily:"Barlow",fontSize:12,color:C2.muted,marginBottom:14}}>
-              Kostenlos auf <strong style={{color:C2.txt}}>aistudio.google.com</strong> → "Get API Key" → "Create API Key". Wird einmalig gespeichert.
+              <strong style={{color:C2.txt,fontFamily:"Barlow Condensed",fontSize:13}}>Option 2 — Google Gemini:</strong><br/>
+              aistudio.google.com → Key fängt mit <strong style={{color:C2.txt}}>AIzaSy</strong> an
             </div>
             <input
               autoFocus
