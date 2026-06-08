@@ -106,12 +106,14 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
     // Mime-Type sicherstellen
     const mime = (fileType && fileType !== "") ? fileType : "image/jpeg";
 
-    // Modelle der Reihe nach probieren
+    // Modelle + API-Versionen der Reihe nach probieren
     const MODELS = [
-      "gemini-2.0-flash",
-      "gemini-2.0-flash-lite",
-      "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
+      { model: "gemini-2.0-flash",            api: "v1beta" },
+      { model: "gemini-2.0-flash-lite",       api: "v1beta" },
+      { model: "gemini-1.5-flash",            api: "v1"     },
+      { model: "gemini-1.5-flash",            api: "v1beta" },
+      { model: "gemini-1.5-flash-002",        api: "v1"     },
+      { model: "gemini-1.5-flash-001",        api: "v1"     },
     ];
 
     let lastError = "";
@@ -140,7 +142,7 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
         console.log("Gemini Antwort:", JSON.stringify(data).slice(0, 300));
 
         if (data.error) {
-          lastError = `Modell ${model}: ${data.error.message}`;
+          lastError = `${api}/${model}: ${data.error.message}`;
           console.warn(lastError);
           continue;
         }
@@ -167,7 +169,7 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
         succeeded = true;
 
       } catch(e) {
-        lastError = `Modell ${model}: ${e.message}`;
+        lastError = `${api}/${model}: ${e.message}`;
         console.warn(lastError);
       }
     }
