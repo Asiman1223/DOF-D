@@ -174,9 +174,19 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
 
     if (!succeeded) {
       console.error("Alle Modelle fehlgeschlagen:", lastError);
-      const keyHint = !getGeminiKey() ? " Kein API Key gespeichert!" : " Key möglicherweise ungültig oder gesperrt — bitte neuen Key eingeben.";
-      setError(`Fehler: ${lastError}.${keyHint}`);
-      setExtracted({ amount: "", date: new Date().toISOString().slice(0, 10), category: "Sonstiges", note: fileName });
+      // Bei Auth-Fehler: alten Key löschen und Modal zeigen
+      const isAuthError = lastError.toLowerCase().includes("credential") ||
+                          lastError.toLowerCase().includes("401") ||
+                          lastError.toLowerCase().includes("authentication") ||
+                          lastError.toLowerCase().includes("api key");
+      if (isAuthError) {
+        localStorage.removeItem("dof_gemini_key");
+        setError("API Key ungültig oder gesperrt. Bitte neuen Key eingeben.");
+        setShowKeyInput(true);
+      } else {
+        setError(`Fehler: ${lastError}`);
+        setExtracted({ amount: "", date: new Date().toISOString().slice(0, 10), category: "Sonstiges", note: fileName });
+      }
     }
     setAnalyzing(false);
   };
@@ -298,11 +308,12 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
           )}
 
           {/* Key zurücksetzen */}
-          {preview && !analyzing && !extracted && localStorage.getItem("dof_gemini_key") && (
-            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:6}}>
-              <button onClick={()=>{localStorage.removeItem("dof_gemini_key");alert("Key gelöscht — beim nächsten Auslesen neu eingeben");}} style={{background:"transparent",border:"none",color:"#666",fontFamily:"Barlow",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>API Key ändern</button>
-            </div>
-          )}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontFamily:"Barlow",fontSize:10,color:"#444"}}>Gemini KI</span>
+            <button onClick={()=>{localStorage.removeItem("dof_gemini_key");setShowKeyInput(true);}} style={{background:"transparent",border:"none",color:"#e11d48",fontFamily:"Barlow",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>
+              🔑 API Key {localStorage.getItem("dof_gemini_key") ? "ändern" : "eingeben"}
+            </button>
+          </div>
           {preview && !extracted && (
             <button onClick={analyze} disabled={analyzing} style={{width:"100%",background:analyzing?C.card2:C.red,color:"#fff",border:"none",borderRadius:7,padding:"11px",fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,letterSpacing:"1px",cursor:analyzing?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               {analyzing
