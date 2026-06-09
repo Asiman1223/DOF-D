@@ -11,7 +11,7 @@ import {
 import {
   Package, ShoppingCart, TrendingUp, Users, Settings, BarChart2,
   FileText, DollarSign, AlertTriangle, Plus, Edit2, Trash2, X,
-  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark, Megaphone, ClipboardList, Clock
+  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark, Megaphone, ClipboardList, Clock, Truck
 } from "lucide-react";
 
 // ── Supabase ──────────────────────────────────────────────────────────
@@ -420,7 +420,7 @@ function SaleView({ products, setProducts, sales, setSales, customers, setCustom
   const submit=()=>{
     if(!can||!sp)return;
     const q=parseInt(f.quantity),p=parseFloat(f.price);
-    const sale={id:uid(),productId:sp.id,productName:sp.name,size:f.size,quantity:q,price:p,total:q*p,profit:q*(p-sp.buyPrice),payment:f.payment,customerName:f.customerName.trim(),date:tod(),status:"paid"};
+    const sale={id:uid(),productId:sp.id,productName:sp.name,size:f.size,quantity:q,price:p,total:q*p,profit:q*(p-sp.buyPrice),payment:f.payment,customerName:f.customerName.trim(),date:tod(),status:"paid",fulfillmentStatus:"open",trackingNumber:"",customerNote:""};
     setSales(prev=>[sale,...prev]);
     setProducts(prev=>prev.map(pr=>{if(pr.id!==sp.id)return pr;const ns={...pr.sizes,[f.size]:Math.max(0,(pr.sizes[f.size]||0)-q)};const ts=Object.values(ns).reduce((a,b)=>a+b,0);return{...pr,sizes:ns,status:ts===0?"sold_out":pr.status==="planned"?"active":pr.status};}));
     if(f.customerName.trim())setCustomers(prev=>{const ex=prev.find(c=>c.name.toLowerCase()===f.customerName.trim().toLowerCase());if(ex)return prev;return[...prev,{id:uid(),name:f.customerName.trim(),email:"",phone:"",notes:"",createdAt:tod()}];});
@@ -482,6 +482,62 @@ function OrdersView({ sales, setSales }) {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ShippingView({ sales, setSales }) {
+  const isMobile=useIsMobile();
+  const [filter,setFilter]=useState("open");const [search,setSearch]=useState("");
+  const [modal,setModal]=useState(null);const [edit,setEdit]=useState({key:"",trackingNumber:"",customerNote:""});
+  const FS={open:{label:"Offen",color:C.ylw},packed:{label:"Gepackt",color:C.blu},shipped:{label:"Versendet",color:C.grn}};
+  const valid=sales.filter(s=>s.status!=="cancelled");
+  const groups=Object.values(valid.reduce((acc,s)=>{
+    const key=s.source==="shopify"&&s.shopifyOrderNumber?`shopify_${s.shopifyOrderNumber}`:s.id;
+    if(!acc[key]) acc[key]={key,ids:[],items:[],date:s.date,customerName:s.customerName||"Anonym",payment:s.payment,total:0,profit:0,source:s.source,shopifyOrderNumber:s.shopifyOrderNumber,fulfillmentStatus:s.fulfillmentStatus||"open",trackingNumber:s.trackingNumber||"",customerNote:s.customerNote||""};
+    acc[key].ids.push(s.id);acc[key].items.push(s);acc[key].total+=s.total||0;acc[key].profit+=s.profit||0;
+    if((s.fulfillmentStatus||"open")==="shipped") acc[key].fulfillmentStatus="shipped";
+    else if((s.fulfillmentStatus||"open")==="packed"&&acc[key].fulfillmentStatus!=="shipped") acc[key].fulfillmentStatus="packed";
+    if(s.trackingNumber) acc[key].trackingNumber=s.trackingNumber;
+    if(s.customerNote) acc[key].customerNote=s.customerNote;
+    return acc;
+  },{})).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const filtered=groups.filter(g=>(filter==="all"||g.fulfillmentStatus===filter)&&(!search||[g.customerName,g.shopifyOrderNumber,g.trackingNumber,...g.items.map(i=>i.productName)].join(" ").toLowerCase().includes(search.toLowerCase())));
+  const count=st=>groups.filter(g=>g.fulfillmentStatus===st).length;
+  const updateGroup=(g, patch)=>setSales(prev=>prev.map(s=>g.ids.includes(s.id)?{...s,...patch}:s));
+  const pack=g=>updateGroup(g,{fulfillmentStatus:"packed",packedAt:tod(),updatedAt:new Date().toISOString()});
+  const reopen=g=>updateGroup(g,{fulfillmentStatus:"open",shippedAt:"",updatedAt:new Date().toISOString()});
+  const ship=g=>{setEdit({key:g.key,trackingNumber:g.trackingNumber||"",customerNote:g.customerNote||""});setModal(g);};
+  const saveShip=()=>{const g=modal;updateGroup(g,{fulfillmentStatus:"shipped",trackingNumber:edit.trackingNumber.trim(),customerNote:edit.customerNote.trim(),shippedAt:tod(),updatedAt:new Date().toISOString()});setModal(null);};
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:22}}>
+        <div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>VERSAND</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Packliste, Status, Tracking und Kundennotizen</p></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <Stat label="Offen" value={count("open")} Icon={Package} color={C.ylw}/>
+        <Stat label="Gepackt" value={count("packed")} Icon={Archive} color={C.blu}/>
+        <Stat label="Versendet" value={count("shipped")} Icon={Truck} color={C.grn}/>
+        <Stat label="Bestellungen" value={groups.length} Icon={Receipt} color={C.red}/>
+      </div>
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+          <div style={{position:"relative",flex:1,minWidth:isMobile?220:260}}><Search size={13} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Kunde, Bestellung, Produkt oder Tracking suchen..." style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px 8px 29px",fontFamily:"Barlow",fontSize:12,width:"100%"}}/></div>
+          {["all","open","packed","shipped"].map(x=><Btn key={x} variant={filter===x?"primary":"ghost"} sm onClick={()=>setFilter(x)}>{x==="all"?"Alle":FS[x].label}</Btn>)}
+        </div>
+      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        {filtered.map(g=><Card key={g.key}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.3fr 1.4fr 1fr auto",gap:14,alignItems:"center"}}>
+            <div><div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}><span style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.txt}}>{g.source==="shopify"&&g.shopifyOrderNumber?`#${g.shopifyOrderNumber}`:"Manuelle Bestellung"}</span><Badge color={FS[g.fulfillmentStatus]?.color||C.muted}>{FS[g.fulfillmentStatus]?.label||"Offen"}</Badge>{g.source==="shopify"&&<Badge color="#95bf47">Shopify</Badge>}</div><div style={{fontFamily:"Barlow",fontSize:12,color:C.muted}}>{g.date} · {g.customerName} · {fmt(g.total)}</div></div>
+            <div><div style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"1px",marginBottom:5}}>Packliste</div>{g.items.map(i=><div key={i.id} style={{fontFamily:"Barlow",fontSize:12,color:C.txt,marginBottom:3}}>{i.quantity}x {i.productName.split(" ").slice(0,5).join(" ")} · Gr. {i.size}</div>)}</div>
+            <div><div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginBottom:3}}>Tracking</div><div style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:g.trackingNumber?C.txt:C.dim,wordBreak:"break-word"}}>{g.trackingNumber||"Noch offen"}</div>{g.customerNote&&<div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginTop:5,lineHeight:1.4}}>{g.customerNote}</div>}</div>
+            <div style={{display:"flex",gap:6,justifyContent:isMobile?"flex-start":"flex-end",flexWrap:"wrap"}}>{g.fulfillmentStatus!=="open"&&<Btn variant="ghost" sm onClick={()=>reopen(g)}>Zurueck</Btn>}{g.fulfillmentStatus==="open"&&<Btn variant="ghost" sm onClick={()=>pack(g)}><Archive size={12}/> Gepackt</Btn>}<Btn variant={g.fulfillmentStatus==="shipped"?"ghost":"success"} sm onClick={()=>ship(g)}><Truck size={12}/> {g.fulfillmentStatus==="shipped"?"Bearbeiten":"Versenden"}</Btn></div>
+          </div>
+        </Card>)}
+        {filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Keine Bestellungen im Versandfilter</div>}
+      </div>
+      {modal&&<Modal title="Versand abschliessen" onClose={()=>setModal(null)} width={460}><div style={{display:"grid",gap:12}}><Fld label="Trackingnummer" value={edit.trackingNumber} onChange={v=>setEdit(x=>({...x,trackingNumber:v}))} placeholder="DHL / Hermes / UPS Tracking"/><div style={{display:"flex",flexDirection:"column",gap:4}}><label style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>Kundennotiz</label><textarea value={edit.customerNote} onChange={e=>setEdit(x=>({...x,customerNote:e.target.value}))} placeholder="z.B. Danke fuer deine Bestellung, Paket geht heute raus." style={{minHeight:90,background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:13,resize:"vertical"}}/></div></div><div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14,flexWrap:"wrap"}}><Btn variant="ghost" onClick={()=>setModal(null)}>Abbrechen</Btn><Btn variant="success" onClick={saveShip}><Check size={13}/> Als versendet markieren</Btn></div></Modal>}
     </div>
   );
 }
@@ -770,6 +826,7 @@ const NAV=[
   {id:"inventory",label:"Lager",        Icon:Archive},
   {id:"sale",     label:"Verkauf",      Icon:ShoppingCart},
   {id:"orders",   label:"Bestellungen", Icon:Receipt},
+  {id:"shipping", label:"Versand",      Icon:Truck},
   {id:"expenses", label:"Ausgaben",     Icon:DollarSign},
   {id:"stats",    label:"Statistiken",  Icon:BarChart2},
   {id:"report",   label:"Monatsbericht",Icon:FileText},
@@ -847,7 +904,7 @@ export default function App() {
 
   const VIEWS = {
     dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
-    sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
+    sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, shipping:<ShippingView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
     stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, todo:<TodoView {...vp}/>, influencers:<InfluencerView {...vp}/>,
     settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,

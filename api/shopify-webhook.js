@@ -102,6 +102,7 @@ async function handleOrder(order) {
       profit: (price - (product?.buyPrice || 0)) * quantity,
       payment, customerName: custName, date,
       status: order.financial_status === "paid" ? "paid" : "open",
+      fulfillmentStatus: "open", trackingNumber: "", customerNote: order.note || "",
       source: "shopify", shopifyOrderNumber: order.order_number,
     });
   }
