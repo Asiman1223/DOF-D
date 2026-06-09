@@ -23,24 +23,26 @@ function renderHtml({ subject, body, unsubscribeUrl }) {
 }
 
 async function sendOne({ to, subject, body, host }) {
-  const apiKey = env("RESEND_API_KEY");
-  const from = process.env.NEWSLETTER_FROM || "DOFClothes <support@dofclothes.de>";
+  const apiKey = env("BREVO_API_KEY");
+  const senderName = process.env.NEWSLETTER_FROM_NAME || "DOFClothes";
+  const senderEmail = process.env.NEWSLETTER_FROM_EMAIL || "support@dofclothes.de";
+  const replyTo = process.env.NEWSLETTER_REPLY_TO || senderEmail;
   const unsubscribeUrl = `https://${host}/api/newsletter-unsubscribe?email=${encodeURIComponent(to)}&token=${tokenFor(to)}`;
-  const r = await fetch("https://api.resend.com/emails", {
+  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: { "api-key": apiKey, accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
-      from,
-      to,
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
       subject,
-      html: renderHtml({ subject, body, unsubscribeUrl }),
-      text: `${subject}\n\n${body}\n\nAbmelden: ${unsubscribeUrl}`,
-      reply_to: process.env.NEWSLETTER_REPLY_TO || "support@dofclothes.de",
+      htmlContent: renderHtml({ subject, body, unsubscribeUrl }),
+      textContent: `${subject}\n\n${body}\n\nAbmelden: ${unsubscribeUrl}`,
+      replyTo: { email: replyTo, name: senderName },
     }),
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.message || JSON.stringify(data));
-  return data.id;
+  if (!r.ok) throw new Error(data.message || data.code || JSON.stringify(data));
+  return data.messageId || (Array.isArray(data.messageIds) ? data.messageIds[0] : undefined);
 }
 
 module.exports = async function handler(req, res) {
