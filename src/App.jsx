@@ -37,7 +37,8 @@ function useDB(key, init) {
         const res = await fetch(`/api/data?key=${encodeURIComponent(key)}`);
         if (res.status === 401) {
           localStorage.removeItem("dof_auth");
-          window.location.reload();
+          window.dispatchEvent(new Event("dof_auth_expired"));
+          setRdy(true);
           return;
         }
         if (!res.ok) throw new Error(await res.text());
@@ -714,6 +715,12 @@ export default function App() {
   const [sideOpen, setSideOpen] = useState(false);
   const isMobile = useIsMobile();
   const { status: pushStatus, subscribe: pushSubscribe } = usePush();
+
+  useEffect(() => {
+    const expire = () => setAuthed(false);
+    window.addEventListener("dof_auth_expired", expire);
+    return () => window.removeEventListener("dof_auth_expired", expire);
+  }, []);
 
   const ready = p0 && p1 && p2 && p3 && p4 && p5;
   const lowN  = products.filter(p=>{const t=Object.values(p.sizes).reduce((a,b)=>a+b,0);return t>0&&t<=settings.lowStockThreshold;}).length;
