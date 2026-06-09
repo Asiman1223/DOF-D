@@ -635,6 +635,7 @@ function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, 
                 const d=await r.json();
                 alert(d.sent>0?`✓ Test gesendet! (${d.sent} Gerät)`:(d.message||"Fehler: "+JSON.stringify(d)));
               }}><Bell size={12}/> Test-Benachrichtigung senden</Btn>
+              <Btn variant="ghost" sm onClick={onPush} style={{marginTop:8}}><RefreshCw size={12}/> Push neu verbinden</Btn>
             </div>
             :<div>
               <p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginBottom:12}}>Aktiviere Push-Benachrichtigungen um bei jeder neuen Shopify-Bestellung sofort informiert zu werden.</p>

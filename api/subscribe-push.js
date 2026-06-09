@@ -1,4 +1,5 @@
 const { requireAuth } = require("./_auth");
+const crypto = require("crypto");
 
 function readBody(req) {
   if (!req.body) return {};
@@ -19,7 +20,9 @@ module.exports = async function handler(req, res) {
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
   if (!supabaseUrl || !serviceKey) return res.status(500).json({ error: "Supabase Env fehlt" });
 
-  const key = `push_sub_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const endpoint = subscription.endpoint || `${Date.now()}_${Math.random()}`;
+  const id = crypto.createHash("sha256").update(endpoint).digest("hex").slice(0, 24);
+  const key = `push_sub_${id}`;
   const r = await fetch(`${supabaseUrl}/rest/v1/app_data`, {
     method: "POST",
     headers: {

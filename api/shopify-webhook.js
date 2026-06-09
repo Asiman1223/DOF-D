@@ -6,7 +6,14 @@ const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_KEY;
 
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_EMAIL   = process.env.VAPID_EMAIL || "mailto:info@dofclothes.de";
+const VAPID_EMAIL   = vapidSubject(process.env.VAPID_EMAIL);
+
+function vapidSubject(value) {
+  const subject = value || "mailto:info@dofclothes.de";
+  if (subject.startsWith("mailto:") || subject.startsWith("https://")) return subject;
+  if (subject.includes("@")) return `mailto:${subject}`;
+  return subject;
+}
 
 // ── Supabase REST ─────────────────────────────────────────────────────
 const HEADERS = { apikey: SUPABASE_SERVICE, Authorization: `Bearer ${SUPABASE_SERVICE}`, "Content-Type": "application/json" };
@@ -52,7 +59,7 @@ async function sendPushToAll(payload) {
       await webpush.sendNotification(row.value, msg);
     } catch(e) {
       console.error("Push-Fehler für sub:", e.statusCode, e.message);
-      if (e.statusCode === 410 || e.statusCode === 404) {
+      if ([401, 403, 404, 410].includes(e.statusCode)) {
         // Abgelaufene Sub löschen
         await fetch(`${SUPABASE_URL}/rest/v1/app_data?key=eq.${row.key}`, { method: "DELETE", headers: HEADERS });
       }

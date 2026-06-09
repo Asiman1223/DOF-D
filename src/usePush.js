@@ -53,13 +53,12 @@ export function usePush() {
       if (!reg) { setStatus("idle"); return; }
 
       let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        if (!VAPID_PUBLIC) throw new Error("VITE_VAPID_PUBLIC_KEY fehlt");
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8(VAPID_PUBLIC),
-        });
-      }
+      if (sub) await sub.unsubscribe();
+      if (!VAPID_PUBLIC) throw new Error("VITE_VAPID_PUBLIC_KEY fehlt");
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8(VAPID_PUBLIC),
+      });
 
       await saveSubscription(sub);
       setStatus("granted");

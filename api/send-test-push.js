@@ -6,6 +6,13 @@ function env(name) {
   return value;
 }
 
+function vapidSubject(value) {
+  const subject = value || "mailto:info@dofclothes.de";
+  if (subject.startsWith("mailto:") || subject.startsWith("https://")) return subject;
+  if (subject.includes("@")) return `mailto:${subject}`;
+  return subject;
+}
+
 module.exports = async function handler(req, res) {
   if (!requireAuth(req, res)) return;
   if (req.method !== "POST") return res.status(405).end();
@@ -15,7 +22,7 @@ module.exports = async function handler(req, res) {
     const serviceKey = env("SUPABASE_SERVICE_KEY");
     const vapidPublic = env("VAPID_PUBLIC_KEY");
     const vapidPrivate = env("VAPID_PRIVATE_KEY");
-    const vapidEmail = process.env.VAPID_EMAIL || "mailto:info@dofclothes.de";
+    const vapidEmail = vapidSubject(process.env.VAPID_EMAIL);
 
     const webpush = require("web-push");
     webpush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate);
@@ -31,17 +38,24 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    const payload = JSON.stringify({
+      title: "DOFClothes Test",
+      body: "Push-Benachrichtigungen funktionieren.",
+      url: "/",
+    });
     const results = await Promise.allSettled(
-      subs.map(row => webpush.sendNotification(row.value, JSON.stringify({
-        title: "DOFClothes Test",
-        body: "Push-Benachrichtigungen funktionieren.",
-        url: "/",
-      })))
+      subs.map(row => webpush.sendNotification(row.value, payload).catch(async error => {
+        if ([401, 403, 404, 410].includes(error.statusCode)) {
+          await fetch(`${supabaseUrl}/rest/v1/app_data?key=eq.${row.key}`, { method: "DELETE", headers });
+        }
+        throw error;
+      }))
     );
 
     const ok = results.filter(r => r.status === "fulfilled").length;
     const err = results.filter(r => r.status === "rejected").length;
-    return res.status(200).json({ ok: true, sent: ok, failed: err, total: subs.length });
+    const cleaned = results.filter(r => [401, 403, 404, 410].includes(r.reason?.statusCode)).length;
+    return res.status(200).json({ ok: true, sent: ok, failed: err, cleaned, total: subs.length });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
