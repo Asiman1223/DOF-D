@@ -771,71 +771,6 @@ function InfluencerView({ influencers, setInfluencers }) {
   );
 }
 
-function NewsletterView({ newsletterSubscribers, setNewsletterSubscribers, newsletterCampaigns, setNewsletterCampaigns }) {
-  const isMobile=useIsMobile();
-  const [subject,setSubject]=useState("");
-  const [body,setBody]=useState("");
-  const [testEmail,setTestEmail]=useState("support@dofclothes.de");
-  const [sending,setSending]=useState(false);
-  const [search,setSearch]=useState("");
-  const active=newsletterSubscribers.filter(s=>s.status==="active");
-  const unsub=newsletterSubscribers.filter(s=>s.status==="unsubscribed");
-  const filtered=newsletterSubscribers.filter(s=>!search||s.email.toLowerCase().includes(search.toLowerCase())||(s.source||"").toLowerCase().includes(search.toLowerCase()));
-  const setSubStatus=(email,status)=>setNewsletterSubscribers(p=>p.map(s=>s.email===email?{...s,status,updatedAt:new Date().toISOString()}:s));
-  const send=async(test=false)=>{
-    if(!subject.trim()||!body.trim()) return alert("Betreff und Text fehlen.");
-    if(!test&&!confirm(`Newsletter wirklich an ${active.length} aktive Kontakte senden?`)) return;
-    setSending(true);
-    try{
-      const r=await fetch("/api/newsletter-send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({subject,body,testEmail:test?testEmail:""})});
-      const d=await r.json();
-      if(!d.ok) throw new Error(d.error||JSON.stringify(d));
-      if(d.campaigns) setNewsletterCampaigns(d.campaigns);
-      alert(test?`Test gesendet: ${d.sent}`:`Gesendet: ${d.sent}, Fehler: ${d.failed}`);
-      if(!test){setSubject("");setBody("");}
-    }catch(e){alert("Fehler: "+e.message);}finally{setSending(false);}
-  };
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:22}}>
-        <div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>NEWSLETTER</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Shopify-Anmeldungen sammeln und Mailings senden</p></div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:16}}>
-        <Stat label="Aktiv" value={active.length} Icon={Mail} color={C.grn}/>
-        <Stat label="Abgemeldet" value={unsub.length} Icon={BellOff} color={C.muted}/>
-        <Stat label="Kampagnen" value={newsletterCampaigns.length} Icon={Send} color={C.red}/>
-        <Stat label="Kontakte" value={newsletterSubscribers.length} Icon={Users} color={C.blu}/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.1fr 1fr",gap:14,alignItems:"start"}}>
-        <Card>
-          <SH>Neue Kampagne</SH>
-          <div style={{display:"grid",gap:12}}>
-            <Fld label="Betreff" value={subject} onChange={setSubject} placeholder="Neuer DOF Drop ist live"/>
-            <div style={{display:"flex",flexDirection:"column",gap:4}}><label style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>Nachricht</label><textarea value={body} onChange={e=>setBody(e.target.value)} placeholder="Schreib hier deine Mail..." style={{minHeight:180,background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"10px 12px",fontFamily:"Barlow",fontSize:13,resize:"vertical",lineHeight:1.55}}/></div>
-            <Fld label="Test-Mail an" value={testEmail} onChange={setTestEmail} placeholder="support@dofclothes.de"/>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}><Btn variant="ghost" disabled={sending} onClick={()=>send(true)}><Mail size={13}/> Test senden</Btn><Btn disabled={sending||active.length===0} onClick={()=>send(false)}><Send size={13}/> An alle senden</Btn></div>
-          </div>
-        </Card>
-        <Card>
-          <SH>Abonnenten</SH>
-          <div style={{position:"relative",marginBottom:10}}><Search size={13} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="E-Mail suchen..." style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px 8px 29px",fontFamily:"Barlow",fontSize:12,width:"100%"}}/></div>
-          <div style={{display:"flex",flexDirection:"column",gap:7,maxHeight:360,overflowY:"auto"}}>
-            {filtered.map(s=><div key={s.email} style={{display:"flex",alignItems:"center",gap:8,background:C.card2,border:`1px solid ${C.bdr}`,borderRadius:7,padding:"9px 10px",flexWrap:isMobile?"wrap":"nowrap"}}><div style={{flex:1,minWidth:180}}><div style={{fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,color:C.txt}}>{s.email}</div><div style={{fontFamily:"Barlow",fontSize:10,color:C.muted}}>{s.source||"shopify"} · {s.createdAt?.slice(0,10)||"-"}</div></div><Badge color={s.status==="active"?C.grn:C.muted}>{s.status==="active"?"Aktiv":"Abgemeldet"}</Badge><Btn variant="ghost" sm onClick={()=>setSubStatus(s.email,s.status==="active"?"unsubscribed":"active")}>{s.status==="active"?"Stop":"Aktiv"}</Btn></div>)}
-            {filtered.length===0&&<div style={{textAlign:"center",padding:"36px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Noch keine Newsletter-Kontakte</div>}
-          </div>
-        </Card>
-      </div>
-      <Card style={{marginTop:14}}>
-        <SH>Versandhistorie</SH>
-        <div style={{display:"flex",flexDirection:"column",gap:7}}>
-          {newsletterCampaigns.map(c=><div key={c.id} style={{display:"flex",alignItems:"center",gap:10,justifyContent:"space-between",background:C.card2,border:`1px solid ${C.bdr}`,borderRadius:7,padding:"10px 12px",flexWrap:isMobile?"wrap":"nowrap"}}><div style={{flex:1,minWidth:220}}><div style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:C.txt}}>{c.subject}</div><div style={{fontFamily:"Barlow",fontSize:11,color:C.muted}}>{c.createdAt?.slice(0,16).replace("T"," ")} · {c.test?"Test":"Kampagne"}</div></div><Badge color={c.failed?C.ylw:C.grn}>{c.sent}/{c.recipients} gesendet</Badge></div>)}
-          {newsletterCampaigns.length===0&&<div style={{textAlign:"center",padding:"26px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Noch keine Kampagnen gesendet</div>}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, setCustomers, pushStatus, onPush }) {
   const isMobile = useIsMobile();
   const [thr,setThr]=useState(String(settings.lowStockThreshold));
@@ -898,7 +833,6 @@ const NAV=[
   {id:"customers",label:"Kunden",       Icon:Users},
   {id:"todo",     label:"To-do Board",  Icon:ClipboardList},
   {id:"influencers",label:"Influencer", Icon:Megaphone},
-  {id:"newsletter",label:"Newsletter",  Icon:Mail},
   {id:"settings",   label:"Einstellungen",Icon:Settings},
   {id:"rechnungen", label:"Rechnungen",    Icon:Upload},
   {id:"steuer",     label:"Steuer",       Icon:Landmark},
@@ -953,8 +887,6 @@ export default function App() {
   const [invoices, setInvoices,  p5] = useDB("dof_invoices",   []);
   const [influencers,setInfluencers,p6] = useDB("dof_influencers", []);
   const [tasks, setTasks, p7] = useDB("dof_tasks", []);
-  const [newsletterSubscribers,setNewsletterSubscribers,p8] = useDB("dof_newsletter_subscribers", []);
-  const [newsletterCampaigns,setNewsletterCampaigns,p9] = useDB("dof_newsletter_campaigns", []);
   const [active, setActive] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -966,14 +898,14 @@ export default function App() {
     return () => window.removeEventListener("dof_auth_expired", expire);
   }, []);
 
-  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8 && p9;
+  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6 && p7;
   const lowN  = products.filter(p=>{const t=Object.values(p.sizes).reduce((a,b)=>a+b,0);return t>0&&t<=settings.lowStockThreshold;}).length;
-  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers, tasks, setTasks, newsletterSubscribers, setNewsletterSubscribers, newsletterCampaigns, setNewsletterCampaigns };
+  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers, tasks, setTasks };
 
   const VIEWS = {
     dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
     sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, shipping:<ShippingView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
-    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, todo:<TodoView {...vp}/>, influencers:<InfluencerView {...vp}/>, newsletter:<NewsletterView {...vp}/>,
+    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, todo:<TodoView {...vp}/>, influencers:<InfluencerView {...vp}/>,
     settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
     steuer:<SteuerView sales={sales} expenses={expenses}/>,
