@@ -15,12 +15,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background: #080808; color: #f0f0f0; font-family: 'Barlow', sans-serif; }
+      html, body, #root { min-height: 100%; overflow-x: hidden; }
+      body { background: #080808; color: #f0f0f0; font-family: 'Barlow', sans-serif; -webkit-font-smoothing: antialiased; }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: #0d0d0d; }
       ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
       input, select, textarea, button { outline: none; font-family: inherit; }
       button { cursor: pointer; border: none; background: none; }
+      @media (max-width: 767px) {
+        input, select, textarea { font-size: 16px !important; }
+        button { -webkit-tap-highlight-color: transparent; }
+      }
 
       /* ── DRUCK / PDF ─────────────────────────────── */
       @media print {

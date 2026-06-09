@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calculator, TrendingUp, Info } from "lucide-react";
 
 const C = { bg:"#080808", panel:"#0d0d0d", card:"#111111", card2:"#171717", bdr:"#222222", red:"#e11d48", grn:"#22c55e", ylw:"#f59e0b", blu:"#3b82f6", txt:"#f0f0f0", muted:"#888888", dim:"#444444" };
 const fmt  = n => `${parseFloat(n||0).toFixed(2).replace(".",",")} €`;
 const fN   = v => parseFloat(v) || 0;
+
+function useIsMobile() {
+  const [m, setM] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+}
 
 const Fld = ({ label, value, onChange, hint }) => (
   <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
@@ -27,6 +37,7 @@ const Result = ({ label, value, color, big, sub }) => (
 );
 
 export default function KalkulatorView() {
+  const isMobile = useIsMobile();
   const [ek,        setEk]        = useState("9.00");
   const [verpack,   setVerpack]   = useState("0.50");
   const [versand,   setVersand]   = useState("0.00");
@@ -76,13 +87,13 @@ export default function KalkulatorView() {
         <p style={{ fontFamily:"Barlow", fontSize:12, color:C.muted, marginTop:3 }}>Berechne deinen echten Gewinn und finde den optimalen VK-Preis</p>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:16 }}>
 
         {/* ── Eingaben ── */}
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           <div style={{ background:C.card, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"16px 20px" }}>
             <div style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:14, paddingBottom:7, borderBottom:`1px solid ${C.bdr}` }}>Kosten pro Stück</div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:12 }}>
               <Fld label="EK-Preis (€)"       value={ek}        onChange={setEk}        hint="€"/>
               <Fld label="Verpackung (€)"      value={verpack}   onChange={setVerpack}   hint="€"/>
               <Fld label="Versandkosten (€)"   value={versand}   onChange={setVersand}   hint="€"/>
@@ -92,7 +103,7 @@ export default function KalkulatorView() {
 
           <div style={{ background:C.card, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"16px 20px" }}>
             <div style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:14, paddingBottom:7, borderBottom:`1px solid ${C.bdr}` }}>Shopify & Steuern</div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+            <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:12, marginBottom:12 }}>
               <Fld label="Shopify-Gebühr (%)" value={shopifyP} onChange={setShopifyP} hint="%"/>
               <Fld label="Transaktionsgebühr" value={shopifyF} onChange={setShopifyF} hint="€"/>
             </div>
@@ -122,7 +133,7 @@ export default function KalkulatorView() {
           <div style={{ background:C.card, border:`2px solid ${C.red}44`, borderRadius:8, padding:"16px 20px" }}>
             <div style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:14, paddingBottom:7, borderBottom:`1px solid ${C.bdr}` }}>Empfohlener VK-Preis</div>
             <div style={{ textAlign:"center", padding:"16px 0" }}>
-              <div style={{ fontFamily:"Bebas Neue", fontSize:52, color:C.red, letterSpacing:"2px", lineHeight:1 }}>
+              <div style={{ fontFamily:"Bebas Neue", fontSize:isMobile?42:52, color:C.red, letterSpacing:"2px", lineHeight:1 }}>
                 {fmt(vkBrutto).replace(" €","")}
               </div>
               <div style={{ fontFamily:"Barlow Condensed", fontSize:16, color:C.red, marginTop:2 }}>€ {mwst==="19"?"(inkl. 19% MwSt.)":""}</div>

@@ -45,10 +45,14 @@ export default function Login({ onLogin }) {
         .shake { animation: shake 0.45s ease; }
         .login-input:focus { border-color: #e11d48 !important; }
         .login-btn:hover { background: #c81040 !important; }
+        @media (max-width: 420px) {
+          .login-logo { font-size: 38px !important; letter-spacing: 5px !important; }
+          .login-card { width: calc(100vw - 28px) !important; padding: 24px 22px !important; }
+        }
       `}</style>
 
       <div style={{ textAlign:"center", marginBottom:36 }}>
-        <div style={{ fontFamily:"Bebas Neue", fontSize:44, letterSpacing:"7px", color:C.txt, lineHeight:1 }}>
+        <div className="login-logo" style={{ fontFamily:"Bebas Neue", fontSize:44, letterSpacing:"7px", color:C.txt, lineHeight:1 }}>
           DOFCLOTHES
         </div>
         <div style={{ fontFamily:"Barlow Condensed", fontSize:10, color:C.red, letterSpacing:"3px", fontWeight:700, marginTop:5 }}>
@@ -57,7 +61,7 @@ export default function Login({ onLogin }) {
       </div>
 
       <div
-        className={err ? "shake" : ""}
+        className={`login-card ${err ? "shake" : ""}`}
         style={{
           background: C.panel,
           border: `1px solid ${err ? C.red : C.bdr}`,

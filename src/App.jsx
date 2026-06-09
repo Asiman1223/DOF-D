@@ -134,11 +134,10 @@ function printReport({ sales, expenses, mo, yr }) {
 }
 
 // ── Primitive Komponenten ─────────────────────────────────────────────
-const Card = ({ children, style, id }) => (
-  <div id={id} style={{ background:C.card, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"16px 20px", ...style }}>
-    {children}
-  </div>
-);
+const Card = ({ children, style, id }) => {
+  const isMobile = useIsMobile();
+  return <div id={id} style={{ background:C.card, border:`1px solid ${C.bdr}`, borderRadius:8, padding:isMobile?"13px 14px":"16px 20px", ...style }}>{children}</div>;
+};
 
 const Btn = ({ children, onClick, variant="primary", style, sm, disabled }) => {
   const V = {
@@ -177,17 +176,20 @@ const Badge = ({ children, color=C.muted }) => (
   </span>
 );
 
-const Modal = ({ title, onClose, children, width=560 }) => (
-  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:999 }}>
-    <div style={{ background:C.panel, border:`1px solid ${C.bdr}`, borderRadius:12, width, maxWidth:"96vw", maxHeight:"90vh", overflowY:"auto" }}>
+const Modal = ({ title, onClose, children, width=560 }) => {
+  const isMobile = useIsMobile();
+  return (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:isMobile?"flex-start":"center", justifyContent:"center", zIndex:999, padding:isMobile?"10px":"0", paddingTop:isMobile?"calc(env(safe-area-inset-top, 0px) + 10px)":"0" }}>
+    <div style={{ background:C.panel, border:`1px solid ${C.bdr}`, borderRadius:isMobile?10:12, width:isMobile?"100%":width, maxWidth:isMobile?"100%":"96vw", maxHeight:isMobile?"calc(100vh - 20px)":"90vh", overflowY:"auto" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:`1px solid ${C.bdr}` }}>
         <h3 style={{ fontFamily:"Barlow Condensed", fontSize:17, fontWeight:700, color:C.txt }}>{title}</h3>
         <button onClick={onClose} style={{ color:C.muted, cursor:"pointer" }}><X size={17}/></button>
       </div>
-      <div style={{ padding:"18px" }}>{children}</div>
+      <div style={{ padding:isMobile?"14px":"18px" }}>{children}</div>
     </div>
   </div>
-);
+  );
+};
 
 const SH = ({ children }) => (
   <div style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:10, paddingBottom:7, borderBottom:`1px solid ${C.bdr}` }}>
@@ -325,13 +327,13 @@ function ProdView({ products, setProducts }) {
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:9}}>
         {products.map(p=>{const ts=Object.values(p.sizes).reduce((a,b)=>a+b,0);return(
-          <Card key={p.id} style={{display:"flex",alignItems:"center",gap:14}}>
+          <Card key={p.id} style={{display:"flex",alignItems:"center",gap:14,flexWrap:isMobile?"wrap":"nowrap"}}>
             <div style={{flex:1}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><span style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:C.txt}}>{p.name}</span><Badge color={TP[p.status]}>{TL[p.status]}</Badge></div>
               <div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginBottom:7}}>{p.category} · {p.color} · {p.material}</div>
               <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{Object.entries(p.sizes).map(([sz,qty])=><span key={sz} style={{background:C.card2,border:`1px solid ${C.bdr}`,borderRadius:4,padding:"2px 7px",fontFamily:"Barlow Condensed",fontSize:10,color:qty===0?C.dim:C.txt}}>{sz}: {qty}</span>)}</div>
             </div>
-            <div style={{textAlign:"right",minWidth:130}}>
+            <div style={{textAlign:isMobile?"left":"right",minWidth:isMobile?110:130}}>
               <div style={{fontFamily:"Barlow Condensed",fontSize:12,color:C.muted}}>EK: {fmt(p.buyPrice)}</div>
               <div style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.txt}}>{fmt(p.sellPrice)}</div>
               <div style={{fontFamily:"Barlow Condensed",fontSize:12,color:C.grn}}>+{fmt(p.sellPrice-p.buyPrice)}</div>
@@ -346,7 +348,7 @@ function ProdView({ products, setProducts }) {
         {products.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Noch keine Produkte.</div>}
       </div>
       {modal&&<Modal title={modal==="add"?"Neues Produkt":"Produkt bearbeiten"} onClose={()=>setModal(null)} width={620}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:12}}>
           <Fld label="Name" value={f.name} onChange={v=>setF(x=>({...x,name:v}))} style={{gridColumn:"1/-1"}}/>
           <Fld label="Kategorie" value={f.category} onChange={v=>setF(x=>({...x,category:v}))}/>
           <Fld label="Farbe" value={f.color} onChange={v=>setF(x=>({...x,color:v}))}/>
@@ -357,7 +359,7 @@ function ProdView({ products, setProducts }) {
         </div>
         <div style={{marginTop:14,marginBottom:6}}>
           <div style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:8}}>Bestand pro Größe</div>
-          <div style={{display:"flex",gap:8}}>{["S","M","L","XL","XXL"].map(sz=><Fld key={sz} label={sz} type="number" value={f.sizes[sz]} onChange={v=>setF(x=>({...x,sizes:{...x.sizes,[sz]:parseInt(v)||0}}))} style={{flex:1}}/>)}</div>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(5,1fr)",gap:8}}>{["S","M","L","XL","XXL"].map(sz=><Fld key={sz} label={sz} type="number" value={f.sizes[sz]} onChange={v=>setF(x=>({...x,sizes:{...x.sizes,[sz]:parseInt(v)||0}}))}/>)}</div>
         </div>
         {f.buyPrice&&f.sellPrice&&<div style={{background:C.card2,borderRadius:6,padding:"9px 12px",marginBottom:14,fontFamily:"Barlow Condensed",fontSize:13,color:C.grn}}>Gewinn: {fmt(parseFloat(f.sellPrice)-parseFloat(f.buyPrice))} / Stück ({((parseFloat(f.sellPrice)-parseFloat(f.buyPrice))/parseFloat(f.sellPrice)*100).toFixed(1)}%)</div>}
         <div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14}}>
@@ -485,6 +487,7 @@ function OrdersView({ sales, setSales }) {
 }
 
 function AusgView({ expenses, setExpenses, invoices=[] }) {
+  const isMobile = useIsMobile();
   const [show,setShow]=useState(false);
   const E={category:"Wareneinkauf",amount:"",date:tod(),note:""};const [f,setF]=useState(E);
   const CATS=["Wareneinkauf","Versandmaterial","Werbung","Shopify","Domain","Sonstiges"];
@@ -498,7 +501,7 @@ function AusgView({ expenses, setExpenses, invoices=[] }) {
     <div>
       {viewImg&&<div onClick={()=>setViewImg(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,padding:20}}><div onClick={e=>e.stopPropagation()} style={{position:"relative",maxWidth:"90vw",maxHeight:"90vh"}}><button onClick={()=>setViewImg(null)} style={{position:"absolute",top:-14,right:-14,background:"#e11d48",border:"none",borderRadius:"50%",width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={14} color="#fff"/></button><img src={viewImg.src} alt={viewImg.fileName} style={{maxWidth:"100%",maxHeight:"85vh",borderRadius:8,display:"block",objectFit:"contain"}}/><div style={{fontFamily:"Barlow",fontSize:11,color:"#888",textAlign:"center",marginTop:8}}>{viewImg.fileName}</div></div></div>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}><div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>AUSGABEN</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Gesamt: {fmt(total)}</p></div><Btn onClick={()=>setShow(s=>!s)}><Plus size={13}/> Ausgabe</Btn></div>
-      {show&&<Card style={{marginBottom:14}}><SH>Neue Ausgabe</SH><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:11,marginBottom:11}}><Fld label="Kategorie" value={f.category} onChange={v=>setF(x=>({...x,category:v}))} options={CATS}/><Fld label="Betrag (€)" type="number" value={f.amount} onChange={v=>setF(x=>({...x,amount:v}))} placeholder="0.00"/><Fld label="Datum" type="date" value={f.date} onChange={v=>setF(x=>({...x,date:v}))}/><Fld label="Notiz" value={f.note} onChange={v=>setF(x=>({...x,note:v}))} placeholder="Beschreibung…" style={{gridColumn:"1/-1"}}/></div><div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><Btn variant="ghost" sm onClick={()=>setShow(false)}>Abbrechen</Btn><Btn sm onClick={add}><Check size={12}/> Speichern</Btn></div></Card>}
+      {show&&<Card style={{marginBottom:14}}><SH>Neue Ausgabe</SH><div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:11,marginBottom:11}}><Fld label="Kategorie" value={f.category} onChange={v=>setF(x=>({...x,category:v}))} options={CATS}/><Fld label="Betrag (€)" type="number" value={f.amount} onChange={v=>setF(x=>({...x,amount:v}))} placeholder="0.00"/><Fld label="Datum" type="date" value={f.date} onChange={v=>setF(x=>({...x,date:v}))}/><Fld label="Notiz" value={f.note} onChange={v=>setF(x=>({...x,note:v}))} placeholder="Beschreibung…" style={{gridColumn:"1/-1"}}/></div><div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}><Btn variant="ghost" sm onClick={()=>setShow(false)}>Abbrechen</Btn><Btn sm onClick={add}><Check size={12}/> Speichern</Btn></div></Card>}
       <div style={{display:"flex",flexDirection:"column",gap:7}}>
         {expenses.map(e=>(
           <Card key={e.id} style={{display:"flex",alignItems:"center",gap:12}}><div style={{background:(CC[e.category]||C.muted)+"22",borderRadius:6,padding:7}}><DollarSign size={14} color={CC[e.category]||C.muted}/></div><div style={{flex:1}}><Badge color={CC[e.category]||C.muted}>{e.category}</Badge><div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginTop:3}}>{e.date}{e.note?` · ${e.note}`:""}</div></div><div style={{fontFamily:"Barlow Condensed",fontSize:17,fontWeight:700,color:C.red}}>{fmt(e.amount)}</div>{getInvoice(e.id)?.image&&<button onClick={()=>setViewImg({src:getInvoice(e.id).image,fileName:getInvoice(e.id).fileName})} style={{background:"#111",border:"1px solid #222",color:"#888",borderRadius:5,padding:"5px 8px",cursor:"pointer",display:"flex",alignItems:"center"}}><Eye size={11}/></button>}<Btn variant="danger" sm onClick={()=>del(e.id)}><Trash2 size={11}/></Btn></Card>
@@ -554,7 +557,7 @@ function ReportView({ sales, expenses }) {
           <Btn variant="ghost" sm onClick={()=>printReport({sales,expenses,mo,yr})}><Printer size={13}/> Drucken / PDF</Btn>
         </div>
       </div>
-      <Card>
+      <Card style={{overflowX:isMobile?"auto":"visible"}}>
         <div style={{fontFamily:"Bebas Neue",fontSize:24,color:C.txt,letterSpacing:"3px",marginBottom:2}}>DOF – DISCIPLINE OVER FEELINGS</div>
         <div style={{fontFamily:"Barlow Condensed",fontSize:13,color:C.muted,marginBottom:22}}>Monatsbericht {MON[mo]} {yr} · dofclothes.de</div>
         <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:22}}>
@@ -782,10 +785,10 @@ const NAV=[
 function Sidebar({ active, setActive, lowN, onLogout, pushStatus, onPush, isMobile, isOpen, onClose }) {
   return (
     <aside style={{
-      width:206, background:C.panel, borderRight:`1px solid ${C.bdr}`,
+      width:isMobile?252:206, background:C.panel, borderRight:`1px solid ${C.bdr}`,
       display:"flex", flexDirection:"column", flexShrink:0, overflowY:"auto",
       ...(isMobile ? {
-        position:"fixed", top:0, left: isOpen ? 0 : -220, height:"100vh",
+        position:"fixed", top:0, left: isOpen ? 0 : -270, height:"100vh",
         zIndex:999, transition:"left 0.25s ease", boxShadow: isOpen ? "4px 0 24px rgba(0,0,0,0.6)" : "none"
       } : {
         position:"sticky", top:0, height:"100vh", minHeight:"100vh"
@@ -797,7 +800,7 @@ function Sidebar({ active, setActive, lowN, onLogout, pushStatus, onPush, isMobi
       </div>
       <nav style={{flex:1,padding:"8px 6px"}}>
         {NAV.map(({id,label,Icon})=>{const on=active===id;return(
-          <button key={id} onClick={()=>setActive(id)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:"8px 9px",borderRadius:6,marginBottom:1,background:on?C.red+"1e":"transparent",border:on?`1px solid ${C.red}33`:"1px solid transparent",color:on?C.txt:C.muted,cursor:"pointer",transition:"background 0.1s",textAlign:"left"}}>
+          <button key={id} onClick={()=>setActive(id)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:isMobile?"11px 10px":"8px 9px",borderRadius:6,marginBottom:1,background:on?C.red+"1e":"transparent",border:on?`1px solid ${C.red}33`:"1px solid transparent",color:on?C.txt:C.muted,cursor:"pointer",transition:"background 0.1s",textAlign:"left"}}>
             <Icon size={14} color={on?C.red:C.muted}/>
             <span style={{fontFamily:"Barlow Condensed",fontSize:13,fontWeight:on?700:500,letterSpacing:"0.3px",flex:1}}>{label}</span>
             {id==="inventory"&&lowN>0&&<span style={{background:C.ylw,color:"#000",borderRadius:9,padding:"1px 5px",fontSize:9,fontFamily:"Barlow Condensed",fontWeight:700}}>{lowN}</span>}
@@ -881,9 +884,9 @@ export default function App() {
         isOpen={sideOpen}
         onClose={() => setSideOpen(false)}
       />
-      <main style={{flex:1,overflowY:"auto",padding:isMobile?"14px":"26px 28px",paddingTop:isMobile?"0":"26px",minWidth:0}}>
+      <main style={{flex:1,overflowY:"auto",padding:isMobile?"12px":"26px 28px",paddingTop:isMobile?"0":"26px",minWidth:0}}>
         {isMobile && (
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,paddingTop:"env(safe-area-inset-top, 50px)",marginTop:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,paddingTop:"calc(env(safe-area-inset-top, 0px) + 10px)",paddingBottom:10,position:"sticky",top:0,zIndex:50,background:C.bg}}>
             <button onClick={() => setSideOpen(true)} style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:7,padding:"10px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,letterSpacing:"1px"}}>
               <span style={{fontSize:18,lineHeight:1}}>☰</span> MENÜ
             </button>

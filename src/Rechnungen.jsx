@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Upload, Trash2, Check, FileText, AlertTriangle, Eye, X, ZoomIn } from "lucide-react";
 
 function getGeminiKey() { return localStorage.getItem("dof_gemini_key") || ""; }
@@ -11,6 +11,16 @@ const C = {
 const fmt  = n => `${parseFloat(n||0).toFixed(2).replace(".",",")} €`;
 const CATS = ["Wareneinkauf","Versandmaterial","Werbung","Shopify","Domain","Sonstiges"];
 const CC   = { Wareneinkauf:C.blu, Versandmaterial:C.ylw, Werbung:C.red, Shopify:"#6366f1", Domain:C.grn, Sonstiges:C.muted };
+
+function useIsMobile() {
+  const [m, setM] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+}
 
 // Bild komprimieren bevor es gespeichert wird (max 1000px, JPEG 75%)
 function compressImage(dataUrl, maxW = 1000) {
@@ -45,6 +55,7 @@ function ImageModal({ src, fileName, onClose }) {
 }
 
 export default function RechnungenView({ expenses, setExpenses, invoices, setInvoices }) {
+  const isMobile = useIsMobile();
   const [preview,   setPreview]   = useState(null);   // Vorschau im Upload-Bereich
   const [fileName,  setFileName]  = useState("");
   const [fileType,  setFileType]  = useState("");
@@ -229,7 +240,7 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
         </div>
       )}
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16,marginBottom:20}}>
 
         {/* ── Links: Upload + Vorschau ── */}
         <div>
@@ -332,7 +343,7 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
           ? <div style={{textAlign:"center",padding:"40px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>Noch keine Rechnungen gespeichert</div>
           : <div style={{display:"flex",flexDirection:"column",gap:7}}>
               {invoices.map(inv=>(
-                <div key={inv.id} style={{background:C.card,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                <div key={inv.id} style={{background:C.card,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"12px 16px",display:"flex",alignItems:"center",gap:12,flexWrap:isMobile?"wrap":"nowrap"}}>
                   {/* Vorschau-Thumbnail */}
                   {inv.image
                     ? <img src={inv.image} alt="" onClick={()=>setViewImg({src:inv.image,fileName:inv.fileName})}
@@ -341,7 +352,7 @@ Antworte AUSSCHLIESSLICH mit diesem JSON, kein Text davor oder danach:
                         <FileText size={18} color={CC[inv.category]||C.muted}/>
                       </div>
                   }
-                  <div style={{flex:1}}>
+                  <div style={{flex:1,minWidth:isMobile?190:0}}>
                     <div style={{fontFamily:"Barlow Condensed",fontSize:13,fontWeight:700,color:C.txt,marginBottom:2}}>{inv.note||inv.fileName}</div>
                     <div style={{fontFamily:"Barlow",fontSize:11,color:C.muted}}>{inv.date} · {inv.category} · {inv.fileName}</div>
                   </div>
