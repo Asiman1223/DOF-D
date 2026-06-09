@@ -11,7 +11,7 @@ import {
 import {
   Package, ShoppingCart, TrendingUp, Users, Settings, BarChart2,
   FileText, DollarSign, AlertTriangle, Plus, Edit2, Trash2, X,
-  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark
+  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark, Megaphone
 } from "lucide-react";
 
 // ── Supabase ──────────────────────────────────────────────────────────
@@ -601,6 +601,69 @@ function KundView({ customers, setCustomers, sales }) {
   );
 }
 
+function InfluencerView({ influencers, setInfluencers }) {
+  const isMobile = useIsMobile();
+  const [modal,setModal]=useState(null);const [eid,setEid]=useState(null);
+  const [search,setSearch]=useState("");const [status,setStatus]=useState("all");const [platform,setPlatform]=useState("all");
+  const [ask,confirmNode]=useConfirm();
+  const E={name:"",handle:"",platform:"Instagram",followers:"",status:"contacted",productsSent:"",giftedValue:"0",shippingCost:"0",discountCode:"",campaignLink:"",orders:"0",revenue:"0",contactDate:tod(),sentDate:"",postDate:"",notes:""};
+  const [f,setF]=useState(E);const [rev,setRev]=useState({amount:"",orders:"1",note:""});
+  const num=v=>parseFloat(v)||0;const int=v=>parseInt(v)||0;
+  const cost=i=>num(i.giftedValue)+num(i.shippingCost);
+  const roi=i=>cost(i)>0?((num(i.revenue)-cost(i))/cost(i))*100:0;
+  const labels={contacted:"Angefragt",sent:"Paket gesendet",posted:"Gepostet",paid:"Umsatz aktiv",dropped:"Beendet"};
+  const colors={contacted:C.blu,sent:C.ylw,posted:C.red,paid:C.grn,dropped:C.muted};
+  const openAdd=()=>{setF(E);setEid(null);setModal("edit");};
+  const openEdit=i=>{setF({...E,...i,followers:String(i.followers||""),giftedValue:String(i.giftedValue||0),shippingCost:String(i.shippingCost||0),orders:String(i.orders||0),revenue:String(i.revenue||0)});setEid(i.id);setModal("edit");};
+  const openRev=i=>{setEid(i.id);setRev({amount:"",orders:"1",note:""});setModal("revenue");};
+  const save=()=>{const row={...f,id:eid||uid(),followers:int(f.followers),giftedValue:num(f.giftedValue),shippingCost:num(f.shippingCost),orders:int(f.orders),revenue:num(f.revenue),updatedAt:new Date().toISOString()};setInfluencers(p=>eid?p.map(i=>i.id===eid?row:i):[row,...p]);setModal(null);};
+  const saveRevenue=()=>{setInfluencers(p=>p.map(i=>i.id===eid?{...i,revenue:num(i.revenue)+num(rev.amount),orders:int(i.orders)+int(rev.orders),status:"paid",lastRevenueNote:rev.note,updatedAt:new Date().toISOString()}:i));setModal(null);};
+  const del=id=>ask("Influencer wirklich loeschen?",()=>setInfluencers(p=>p.filter(i=>i.id!==id)));
+  const setSt=(id,st)=>setInfluencers(p=>p.map(i=>i.id===id?{...i,status:st,updatedAt:new Date().toISOString()}:i));
+  const filtered=influencers.filter(i=>(status==="all"||i.status===status)&&(platform==="all"||i.platform===platform)&&(!search||[i.name,i.handle,i.productsSent,i.discountCode].join(" ").toLowerCase().includes(search.toLowerCase())));
+  const totalRevenue=influencers.reduce((a,i)=>a+num(i.revenue),0);
+  const totalCost=influencers.reduce((a,i)=>a+cost(i),0);
+  const totalFollowers=influencers.reduce((a,i)=>a+int(i.followers),0);
+  const best=[...influencers].sort((a,b)=>num(b.revenue)-num(a.revenue))[0];
+  return (
+    <div>
+      {confirmNode}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22,gap:12,flexWrap:"wrap"}}>
+        <div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>INFLUENCER-TRACKER</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Pakete, Codes, Reichweite und Umsatz pro Creator</p></div>
+        <Btn onClick={openAdd}><Plus size={13}/> Influencer</Btn>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <Stat label="Influencer" value={influencers.length} Icon={Megaphone} color={C.red}/>
+        <Stat label="Follower gesamt" value={totalFollowers.toLocaleString("de-DE")} Icon={Users} color={C.blu}/>
+        <Stat label="Umsatz" value={fmt(totalRevenue)} Icon={TrendingUp} color={C.grn}/>
+        <Stat label="ROI" value={totalCost>0?`${roi({revenue:totalRevenue,giftedValue:totalCost,shippingCost:0}).toFixed(0)}%`:"-"} Icon={DollarSign} color={totalRevenue>=totalCost?C.grn:C.ylw} sub={best?.name?`Top: ${best.name}`:"noch keine Umsaetze"}/>
+      </div>
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.5fr 1fr 1fr",gap:10}}>
+          <div style={{position:"relative"}}><Search size={12} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Name, @handle, Produkt oder Code suchen..." style={{width:"100%",background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px 8px 28px",fontFamily:"Barlow",fontSize:12}}/></div>
+          <select value={status} onChange={e=>setStatus(e.target.value)} style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:12}}><option value="all">Alle Status</option>{Object.entries(labels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select>
+          <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:12}}>{["all","Instagram","TikTok","YouTube","Twitch","Sonstiges"].map(x=><option key={x} value={x}>{x==="all"?"Alle Plattformen":x}</option>)}</select>
+        </div>
+      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        {filtered.map(i=><Card key={i.id}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr auto",gap:14,alignItems:"center"}}>
+            <div><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5,flexWrap:"wrap"}}><span style={{fontFamily:"Barlow Condensed",fontSize:18,fontWeight:700,color:C.txt}}>{i.name||i.handle||"Unbenannt"}</span><Badge color={colors[i.status]||C.muted}>{labels[i.status]||i.status}</Badge></div><div style={{fontFamily:"Barlow",fontSize:12,color:C.muted}}>{i.platform} {i.handle?`Â· ${i.handle}`:""} Â· {int(i.followers).toLocaleString("de-DE")} Follower</div><div style={{fontFamily:"Barlow",fontSize:11,color:C.dim,marginTop:4}}>Gesendet: {i.productsSent||"-"}{i.discountCode?` Â· Code: ${i.discountCode}`:""}</div></div>
+            <div><div style={{fontFamily:"Barlow",fontSize:10,color:C.muted,marginBottom:4}}>Kosten</div><div style={{fontFamily:"Barlow Condensed",fontSize:19,fontWeight:700,color:C.red}}>{fmt(cost(i))}</div><div style={{fontFamily:"Barlow",fontSize:10,color:C.dim}}>Produkt + Versand</div></div>
+            <div><div style={{fontFamily:"Barlow",fontSize:10,color:C.muted,marginBottom:4}}>Performance</div><div style={{fontFamily:"Barlow Condensed",fontSize:19,fontWeight:700,color:num(i.revenue)>0?C.grn:C.txt}}>{fmt(i.revenue)}</div><div style={{fontFamily:"Barlow",fontSize:10,color:C.dim}}>{int(i.orders)} Orders Â· ROI {cost(i)>0?`${roi(i).toFixed(0)}%`:"-"}</div></div>
+            <div style={{display:"flex",gap:6,justifyContent:isMobile?"flex-start":"flex-end",flexWrap:"wrap"}}><Btn variant="success" sm onClick={()=>openRev(i)}><Plus size={12}/> Umsatz</Btn><Btn variant="ghost" sm onClick={()=>openEdit(i)}><Edit2 size={12}/></Btn><Btn variant="danger" sm onClick={()=>del(i.id)}><Trash2 size={12}/></Btn></div>
+          </div>
+          <div style={{display:"flex",gap:6,marginTop:12,flexWrap:"wrap"}}>{Object.entries(labels).map(([k,v])=><button key={k} onClick={()=>setSt(i.id,k)} style={{background:i.status===k?(colors[k]+"22"):"transparent",border:`1px solid ${i.status===k?colors[k]+"55":C.bdr}`,color:i.status===k?colors[k]:C.muted,borderRadius:5,padding:"4px 8px",fontFamily:"Barlow Condensed",fontSize:11,cursor:"pointer"}}>{v}</button>)}</div>
+          {(i.notes||i.campaignLink||i.lastRevenueNote)&&<div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,marginTop:10,lineHeight:1.6}}>{i.campaignLink&&<div>Link: {i.campaignLink}</div>}{i.lastRevenueNote&&<div>Letzter Umsatz: {i.lastRevenueNote}</div>}{i.notes&&<div>Notiz: {i.notes}</div>}</div>}
+        </Card>)}
+        {filtered.length===0&&<div style={{textAlign:"center",padding:"50px 0",color:C.muted,fontFamily:"Barlow",fontSize:13}}>{influencers.length?"Keine Treffer":"Noch keine Influencer eingetragen"}</div>}
+      </div>
+      {modal==="edit"&&<Modal title={eid?"Influencer bearbeiten":"Neuer Influencer"} onClose={()=>setModal(null)} width={720}><div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:12}}><Fld label="Name" value={f.name} onChange={v=>setF(x=>({...x,name:v}))} placeholder="Creator Name"/><Fld label="@Handle" value={f.handle} onChange={v=>setF(x=>({...x,handle:v}))} placeholder="@creator"/><Fld label="Plattform" value={f.platform} onChange={v=>setF(x=>({...x,platform:v}))} options={["Instagram","TikTok","YouTube","Twitch","Sonstiges"]}/><Fld label="Follower" type="number" value={f.followers} onChange={v=>setF(x=>({...x,followers:v}))}/><Fld label="Status" value={f.status} onChange={v=>setF(x=>({...x,status:v}))} options={Object.entries(labels).map(([value,label])=>({value,label}))}/><Fld label="Produkte geschickt" value={f.productsSent} onChange={v=>setF(x=>({...x,productsSent:v}))} placeholder="Oversized Tee L, Hoodie M"/><Fld label="Produktwert" type="number" value={f.giftedValue} onChange={v=>setF(x=>({...x,giftedValue:v}))}/><Fld label="Versandkosten" type="number" value={f.shippingCost} onChange={v=>setF(x=>({...x,shippingCost:v}))}/><Fld label="Discount Code" value={f.discountCode} onChange={v=>setF(x=>({...x,discountCode:v}))} placeholder="DOF10"/><Fld label="Tracking Link" value={f.campaignLink} onChange={v=>setF(x=>({...x,campaignLink:v}))} placeholder="https://..."/><Fld label="Orders" type="number" value={f.orders} onChange={v=>setF(x=>({...x,orders:v}))}/><Fld label="Umsatz" type="number" value={f.revenue} onChange={v=>setF(x=>({...x,revenue:v}))}/><Fld label="Kontakt am" type="date" value={f.contactDate} onChange={v=>setF(x=>({...x,contactDate:v}))}/><Fld label="Gesendet am" type="date" value={f.sentDate} onChange={v=>setF(x=>({...x,sentDate:v}))}/><Fld label="Post am" type="date" value={f.postDate} onChange={v=>setF(x=>({...x,postDate:v}))} style={{gridColumn:isMobile?"auto":"1 / 2"}}/><div style={{display:"flex",flexDirection:"column",gap:4,gridColumn:isMobile?"auto":"1/-1"}}><label style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>Notizen</label><textarea value={f.notes} onChange={e=>setF(x=>({...x,notes:e.target.value}))} placeholder="Absprache, Content-Idee, naechster Follow-up..." style={{minHeight:80,background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:13,resize:"vertical"}}/></div></div><div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14}}><Btn variant="ghost" onClick={()=>setModal(null)}>Abbrechen</Btn><Btn onClick={save}><Check size={13}/> Speichern</Btn></div></Modal>}
+      {modal==="revenue"&&<Modal title="Umsatz nachtragen" onClose={()=>setModal(null)} width={420}><div style={{display:"grid",gap:12}}><Fld label="Umsatz" type="number" value={rev.amount} onChange={v=>setRev(x=>({...x,amount:v}))}/><Fld label="Orders" type="number" value={rev.orders} onChange={v=>setRev(x=>({...x,orders:v}))}/><Fld label="Notiz" value={rev.note} onChange={v=>setRev(x=>({...x,note:v}))} placeholder="z.B. Shopify Code DOF10"/></div><div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14}}><Btn variant="ghost" onClick={()=>setModal(null)}>Abbrechen</Btn><Btn variant="success" onClick={saveRevenue}><Check size={13}/> Eintragen</Btn></div></Modal>}
+    </div>
+  );
+}
+
 function EinstView({ settings, setSettings, setProducts, setSales, setExpenses, setCustomers, pushStatus, onPush }) {
   const isMobile = useIsMobile();
   const [thr,setThr]=useState(String(settings.lowStockThreshold));
@@ -660,6 +723,7 @@ const NAV=[
   {id:"stats",    label:"Statistiken",  Icon:BarChart2},
   {id:"report",   label:"Monatsbericht",Icon:FileText},
   {id:"customers",label:"Kunden",       Icon:Users},
+  {id:"influencers",label:"Influencer", Icon:Megaphone},
   {id:"settings",   label:"Einstellungen",Icon:Settings},
   {id:"rechnungen", label:"Rechnungen",    Icon:Upload},
   {id:"steuer",     label:"Steuer",       Icon:Landmark},
@@ -712,6 +776,7 @@ export default function App() {
   const [customers,setCustomers,p3] = useDB("dof_customers", []);
   const [settings, setSettings, p4] = useDB("dof_settings",  { lowStockThreshold:3 });
   const [invoices, setInvoices,  p5] = useDB("dof_invoices",   []);
+  const [influencers,setInfluencers,p6] = useDB("dof_influencers", []);
   const [active, setActive] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -723,14 +788,14 @@ export default function App() {
     return () => window.removeEventListener("dof_auth_expired", expire);
   }, []);
 
-  const ready = p0 && p1 && p2 && p3 && p4 && p5;
+  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6;
   const lowN  = products.filter(p=>{const t=Object.values(p.sizes).reduce((a,b)=>a+b,0);return t>0&&t<=settings.lowStockThreshold;}).length;
-  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices };
+  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers };
 
   const VIEWS = {
     dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
     sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
-    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>,
+    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, influencers:<InfluencerView {...vp}/>,
     settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
     steuer:<SteuerView sales={sales} expenses={expenses}/>,
