@@ -11,7 +11,7 @@ import {
 import {
   Package, ShoppingCart, TrendingUp, Users, Settings, BarChart2,
   FileText, DollarSign, AlertTriangle, Plus, Edit2, Trash2, X,
-  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark, Megaphone
+  Check, Search, Printer, Home, Archive, Receipt, RefreshCw, Upload, Eye, Bell, BellOff, Smartphone, Calculator, Landmark, Megaphone, ClipboardList, Clock
 } from "lucide-react";
 
 // ── Supabase ──────────────────────────────────────────────────────────
@@ -601,6 +601,54 @@ function KundView({ customers, setCustomers, sales }) {
   );
 }
 
+function TodoView({ tasks, setTasks }) {
+  const isMobile=useIsMobile();
+  const [modal,setModal]=useState(null);const [eid,setEid]=useState(null);
+  const [search,setSearch]=useState("");const [area,setArea]=useState("all");const [prio,setPrio]=useState("all");
+  const [ask,confirmNode]=useConfirm();
+  const ST={todo:["To-do",C.muted],doing:["In Arbeit",C.blu],waiting:["Warten",C.ylw],done:["Erledigt",C.grn]};
+  const PR={high:["Hoch",C.red],medium:["Normal",C.ylw],low:["Niedrig",C.muted]};
+  const AREAS=["Allgemein","Design","Produktion","Shopify","Marketing","Content","Versand","Steuer","Influencer"];
+  const E={title:"",status:"todo",area:"Allgemein",priority:"medium",dueDate:"",owner:"",checklist:"",notes:"",createdAt:tod()};
+  const [f,setF]=useState(E);
+  const openAdd=(st="todo")=>{setF({...E,status:st});setEid(null);setModal("edit");};
+  const openEdit=t=>{setF({...E,...t});setEid(t.id);setModal("edit");};
+  const save=()=>{if(!f.title.trim())return;const row={...f,id:eid||uid(),title:f.title.trim(),updatedAt:new Date().toISOString(),doneAt:f.status==="done"?(f.doneAt||tod()):""};setTasks(p=>eid?p.map(t=>t.id===eid?row:t):[row,...p]);setModal(null);};
+  const del=id=>ask("Aufgabe wirklich loeschen?",()=>setTasks(p=>p.filter(t=>t.id!==id)));
+  const setSt=(id,st)=>setTasks(p=>p.map(t=>t.id===id?{...t,status:st,doneAt:st==="done"?tod():"",updatedAt:new Date().toISOString()}:t));
+  const over=t=>t.dueDate&&t.status!=="done"&&t.dueDate<tod();
+  const today=t=>t.dueDate===tod()&&t.status!=="done";
+  const lines=t=>(t.checklist||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const filtered=tasks.filter(t=>(area==="all"||t.area===area)&&(prio==="all"||t.priority===prio)&&(!search||[t.title,t.notes,t.owner,t.area].join(" ").toLowerCase().includes(search.toLowerCase())));
+  const openN=tasks.filter(t=>t.status!=="done").length, doneN=tasks.filter(t=>t.status==="done").length, overN=tasks.filter(over).length, todayN=tasks.filter(today).length;
+  return (
+    <div>
+      {confirmNode}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22,gap:12,flexWrap:"wrap"}}>
+        <div><h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>TO-DO BOARD</h2><p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Aufgaben fuer Drops, Content, Produktion und Alltag</p></div>
+        <Btn onClick={()=>openAdd()}><Plus size={13}/> Aufgabe</Btn>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <Stat label="Offen" value={openN} Icon={ClipboardList} color={C.blu}/>
+        <Stat label="Heute" value={todayN} Icon={Clock} color={C.ylw}/>
+        <Stat label="Ueberfaellig" value={overN} Icon={AlertTriangle} color={C.red}/>
+        <Stat label="Erledigt" value={doneN} Icon={Check} color={C.grn}/>
+      </div>
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.6fr 1fr 1fr",gap:10}}>
+          <div style={{position:"relative"}}><Search size={12} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:C.muted}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Aufgabe, Notiz oder Bereich suchen..." style={{width:"100%",background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px 8px 28px",fontFamily:"Barlow",fontSize:12}}/></div>
+          <select value={area} onChange={e=>setArea(e.target.value)} style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:12}}><option value="all">Alle Bereiche</option>{AREAS.map(a=><option key={a} value={a}>{a}</option>)}</select>
+          <select value={prio} onChange={e=>setPrio(e.target.value)} style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:12}}><option value="all">Alle Prioritaeten</option>{Object.entries(PR).map(([k,v])=><option key={k} value={k}>{v[0]}</option>)}</select>
+        </div>
+      </Card>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:12,alignItems:"start"}}>
+        {Object.entries(ST).map(([st,[label,color]])=>{const rows=filtered.filter(t=>t.status===st);return <div key={st} style={{background:C.panel,border:`1px solid ${C.bdr}`,borderRadius:8,minHeight:220}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 12px",borderBottom:`1px solid ${C.bdr}`}}><div style={{fontFamily:"Barlow Condensed",fontSize:13,fontWeight:700,color,letterSpacing:"1px",textTransform:"uppercase"}}>{label} ({rows.length})</div><button onClick={()=>openAdd(st)} style={{background:"transparent",border:`1px solid ${C.bdr}`,color:C.muted,borderRadius:5,padding:"3px 6px",cursor:"pointer",display:"flex"}}><Plus size={12}/></button></div><div style={{padding:8,display:"flex",flexDirection:"column",gap:8}}>{rows.map(t=><div key={t.id} style={{background:C.card,border:`1px solid ${over(t)?C.red+"66":C.bdr}`,borderRadius:8,padding:"11px 12px"}}><div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:7}}><div style={{fontFamily:"Barlow Condensed",fontSize:15,fontWeight:700,color:C.txt,lineHeight:1.2}}>{t.title}</div><Badge color={PR[t.priority]?.[1]||C.muted}>{PR[t.priority]?.[0]||t.priority}</Badge></div><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}><Badge color={C.blu}>{t.area}</Badge>{t.dueDate&&<Badge color={over(t)?C.red:today(t)?C.ylw:C.muted}>{over(t)?"Ueberfaellig":today(t)?"Heute":t.dueDate}</Badge>}{t.owner&&<Badge color={C.muted}>{t.owner}</Badge>}</div>{lines(t).length>0&&<div style={{fontFamily:"Barlow",fontSize:11,color:C.muted,lineHeight:1.6,marginBottom:8}}>{lines(t).slice(0,3).map((x,i)=><div key={i}>- {x}</div>)}{lines(t).length>3&&<div style={{color:C.dim}}>+ {lines(t).length-3} weitere</div>}</div>}{t.notes&&<div style={{fontFamily:"Barlow",fontSize:11,color:C.dim,lineHeight:1.5,marginBottom:8}}>{t.notes}</div>}<div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"space-between"}}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{Object.keys(ST).filter(x=>x!==st).map(x=><button key={x} onClick={()=>setSt(t.id,x)} style={{background:"transparent",border:`1px solid ${C.bdr}`,color:ST[x][1],borderRadius:5,padding:"3px 6px",fontFamily:"Barlow Condensed",fontSize:10,cursor:"pointer"}}>{ST[x][0]}</button>)}</div><div style={{display:"flex",gap:4}}><button onClick={()=>openEdit(t)} style={{background:C.card2,border:`1px solid ${C.bdr}`,color:C.muted,borderRadius:5,padding:"4px 7px",cursor:"pointer",display:"flex"}}><Edit2 size={11}/></button><button onClick={()=>del(t.id)} style={{background:"#200810",border:`1px solid #3a0a12`,color:C.red,borderRadius:5,padding:"4px 7px",cursor:"pointer",display:"flex"}}><Trash2 size={11}/></button></div></div></div>)}{rows.length===0&&<div style={{fontFamily:"Barlow",fontSize:12,color:C.dim,textAlign:"center",padding:"28px 8px"}}>Leer</div>}</div></div>;})}
+      </div>
+      {modal==="edit"&&<Modal title={eid?"Aufgabe bearbeiten":"Neue Aufgabe"} onClose={()=>setModal(null)} width={680}><div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:12}}><Fld label="Titel" value={f.title} onChange={v=>setF(x=>({...x,title:v}))} placeholder="z.B. Hoodie Sample bestellen" style={{gridColumn:isMobile?"auto":"1/-1"}}/><Fld label="Status" value={f.status} onChange={v=>setF(x=>({...x,status:v}))} options={Object.entries(ST).map(([value,x])=>({value,label:x[0]}))}/><Fld label="Bereich" value={f.area} onChange={v=>setF(x=>({...x,area:v}))} options={AREAS}/><Fld label="Prioritaet" value={f.priority} onChange={v=>setF(x=>({...x,priority:v}))} options={Object.entries(PR).map(([value,x])=>({value,label:x[0]}))}/><Fld label="Deadline" type="date" value={f.dueDate} onChange={v=>setF(x=>({...x,dueDate:v}))}/><Fld label="Verantwortlich" value={f.owner} onChange={v=>setF(x=>({...x,owner:v}))} placeholder="Ich, Designer, Lieferant..."/><div style={{display:"flex",flexDirection:"column",gap:4,gridColumn:isMobile?"auto":"1/-1"}}><label style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>Checkliste (eine Zeile pro Punkt)</label><textarea value={f.checklist} onChange={e=>setF(x=>({...x,checklist:e.target.value}))} placeholder={"Mockup fertig\nSupplier anschreiben\nPreis bestaetigen"} style={{minHeight:78,background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:13,resize:"vertical"}}/></div><div style={{display:"flex",flexDirection:"column",gap:4,gridColumn:isMobile?"auto":"1/-1"}}><label style={{fontFamily:"Barlow Condensed",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"0.8px"}}>Notizen</label><textarea value={f.notes} onChange={e=>setF(x=>({...x,notes:e.target.value}))} placeholder="Details, Links, naechster Schritt..." style={{minHeight:90,background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"8px 10px",fontFamily:"Barlow",fontSize:13,resize:"vertical"}}/></div></div><div style={{display:"flex",gap:9,justifyContent:"flex-end",marginTop:14}}><Btn variant="ghost" onClick={()=>setModal(null)}>Abbrechen</Btn><Btn onClick={save}><Check size={13}/> Speichern</Btn></div></Modal>}
+    </div>
+  );
+}
+
 function InfluencerView({ influencers, setInfluencers }) {
   const isMobile = useIsMobile();
   const [modal,setModal]=useState(null);const [eid,setEid]=useState(null);
@@ -723,6 +771,7 @@ const NAV=[
   {id:"stats",    label:"Statistiken",  Icon:BarChart2},
   {id:"report",   label:"Monatsbericht",Icon:FileText},
   {id:"customers",label:"Kunden",       Icon:Users},
+  {id:"todo",     label:"To-do Board",  Icon:ClipboardList},
   {id:"influencers",label:"Influencer", Icon:Megaphone},
   {id:"settings",   label:"Einstellungen",Icon:Settings},
   {id:"rechnungen", label:"Rechnungen",    Icon:Upload},
@@ -777,6 +826,7 @@ export default function App() {
   const [settings, setSettings, p4] = useDB("dof_settings",  { lowStockThreshold:3 });
   const [invoices, setInvoices,  p5] = useDB("dof_invoices",   []);
   const [influencers,setInfluencers,p6] = useDB("dof_influencers", []);
+  const [tasks, setTasks, p7] = useDB("dof_tasks", []);
   const [active, setActive] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -788,14 +838,14 @@ export default function App() {
     return () => window.removeEventListener("dof_auth_expired", expire);
   }, []);
 
-  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6;
+  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6 && p7;
   const lowN  = products.filter(p=>{const t=Object.values(p.sizes).reduce((a,b)=>a+b,0);return t>0&&t<=settings.lowStockThreshold;}).length;
-  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers };
+  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers, tasks, setTasks };
 
   const VIEWS = {
     dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
     sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
-    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, influencers:<InfluencerView {...vp}/>,
+    stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, todo:<TodoView {...vp}/>, influencers:<InfluencerView {...vp}/>,
     settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
     steuer:<SteuerView sales={sales} expenses={expenses}/>,

@@ -8,6 +8,7 @@ const ALLOWED_KEYS = new Set([
   "dof_settings",
   "dof_invoices",
   "dof_influencers",
+  "dof_tasks",
 ]);
 
 function env(name) {
