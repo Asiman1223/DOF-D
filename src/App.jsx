@@ -19,10 +19,41 @@ import {
 
 // ── Farben ────────────────────────────────────────────────────────────
 const C = {
-  bg:"#080808", panel:"#0d0d0d", card:"#111111", card2:"#171717",
-  bdr:"#222222", red:"#e11d48", grn:"#22c55e", ylw:"#f59e0b",
-  blu:"#3b82f6", txt:"#f0f0f0", muted:"#888888", dim:"#444444"
+  bg:"#050505", panel:"#090909", card:"#10100f", card2:"#151513",
+  bdr:"#2a2925", red:"#ff304f", grn:"#38d970", ylw:"#f8b938",
+  blu:"#5aa7ff", txt:"#f4f1e8", muted:"#a09a8c", dim:"#5a554c",
+  ink:"#0b0b0a", line:"#37342d"
 };
+
+function GlobalChromeStyles() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600;700&display=swap');
+      * { box-sizing: border-box; }
+      html, body, #root { min-height: 100%; margin: 0; background: ${C.bg}; }
+      body { font-family: "Barlow", sans-serif; }
+      button, input, select, textarea { outline: none; }
+      button { font: inherit; }
+      input::placeholder, textarea::placeholder { color: #6d675d; }
+      ::selection { background: ${C.red}; color: white; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: #080807; }
+      ::-webkit-scrollbar-thumb { background: #28251f; border: 2px solid #080807; border-radius: 8px; }
+      .dof-shell {
+        background:
+          linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(255,255,255,0.018) 1px, transparent 1px),
+          ${C.bg};
+        background-size: 56px 56px, 56px 56px, auto;
+      }
+      .dof-card-hover { transition: border-color .16s ease, transform .16s ease, background .16s ease; }
+      .dof-card-hover:hover { border-color: #4b473d; transform: translateY(-1px); }
+      .dof-nav-btn:hover { background: rgba(255,255,255,0.045) !important; color: ${C.txt} !important; }
+      .dof-control:focus { border-color: ${C.red} !important; box-shadow: 0 0 0 3px rgba(255,48,79,.14); }
+      @keyframes spin{to{transform:rotate(360deg)}}
+    `}</style>
+  );
+}
 
 // ── Supabase Storage Hook ─────────────────────────────────────────────
 // Speichert Daten in Supabase → überall verfügbar, immer aktuell
@@ -136,21 +167,31 @@ function printReport({ sales, expenses, mo, yr }) {
 // ── Primitive Komponenten ─────────────────────────────────────────────
 const Card = ({ children, style, id }) => {
   const isMobile = useIsMobile();
-  return <div id={id} style={{ background:C.card, border:`1px solid ${C.bdr}`, borderRadius:8, padding:isMobile?"13px 14px":"16px 20px", ...style }}>{children}</div>;
+  return <div id={id} className="dof-card-hover" style={{
+    background:`linear-gradient(180deg, ${C.card}, #0c0c0b)`,
+    border:`1px solid ${C.bdr}`,
+    borderRadius:8,
+    padding:isMobile?"14px 14px":"18px 20px",
+    boxShadow:"0 16px 42px rgba(0,0,0,.24)",
+    ...style
+  }}>{children}</div>;
 };
 
 const Btn = ({ children, onClick, variant="primary", style, sm, disabled }) => {
   const V = {
-    primary:{ background:C.red, color:"#fff", border:"none" },
-    ghost:  { background:"transparent", color:C.txt, border:`1px solid ${C.bdr}` },
-    danger: { background:"#200810", color:C.red, border:`1px solid #3a0a12` },
-    success:{ background:"#081a0e", color:C.grn, border:`1px solid #0a2a14` },
+    primary:{ background:`linear-gradient(180deg, ${C.red}, #b90d27)`, color:"#fff", border:"1px solid #ff5a70" },
+    ghost:  { background:"#11100e", color:C.txt, border:`1px solid ${C.line}` },
+    danger: { background:"#21070d", color:"#ff6b81", border:"1px solid #4d1220" },
+    success:{ background:"#071a0d", color:C.grn, border:"1px solid #17472a" },
   };
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      ...V[variant], borderRadius:6, padding:sm?"5px 11px":"8px 16px",
-      fontFamily:"Barlow", fontWeight:600, fontSize:sm?12:13, letterSpacing:"0.4px",
-      display:"flex", alignItems:"center", gap:5, opacity:disabled?.5:1, ...style
+      ...V[variant], borderRadius:6, padding:sm?"6px 11px":"9px 15px",
+      fontFamily:"Barlow", fontWeight:700, fontSize:sm?12:13,
+      display:"flex", alignItems:"center", gap:6, opacity:disabled?.5:1,
+      cursor:disabled?"default":"pointer", minHeight:sm?30:36, whiteSpace:"nowrap",
+      boxShadow:variant==="primary"?"0 10px 22px rgba(255,48,79,.18)":"none",
+      ...style
     }}>
       {children}
     </button>
@@ -159,19 +200,19 @@ const Btn = ({ children, onClick, variant="primary", style, sm, disabled }) => {
 
 const Fld = ({ label, value, onChange, type="text", options, placeholder, style }) => (
   <div style={{ display:"flex", flexDirection:"column", gap:4, ...style }}>
-    {label && <label style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"0.8px" }}>{label}</label>}
+    {label && <label style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1px" }}>{label}</label>}
     {options
-      ? <select value={value} onChange={e=>onChange(e.target.value)} style={{ background:C.card2, border:`1px solid ${C.bdr}`, color:C.txt, borderRadius:6, padding:"7px 10px", fontFamily:"Barlow", fontSize:13 }}>
+      ? <select className="dof-control" value={value} onChange={e=>onChange(e.target.value)} style={{ background:C.card2, border:`1px solid ${C.line}`, color:C.txt, borderRadius:6, padding:"9px 10px", fontFamily:"Barlow", fontSize:13, minHeight:38 }}>
           {options.map(o=><option key={typeof o==="object"?o.value:o} value={typeof o==="object"?o.value:o}>{typeof o==="object"?o.label:o}</option>)}
         </select>
-      : <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-          style={{ background:C.card2, border:`1px solid ${C.bdr}`, color:C.txt, borderRadius:6, padding:"7px 10px", fontFamily:"Barlow", fontSize:13 }}/>
+      : <input className="dof-control" type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+          style={{ background:C.card2, border:`1px solid ${C.line}`, color:C.txt, borderRadius:6, padding:"9px 10px", fontFamily:"Barlow", fontSize:13, minHeight:38 }}/>
     }
   </div>
 );
 
 const Badge = ({ children, color=C.muted }) => (
-  <span style={{ background:color+"22", color, border:`1px solid ${color}44`, borderRadius:4, padding:"2px 7px", fontSize:10, fontFamily:"Barlow Condensed", fontWeight:700, letterSpacing:"0.5px", whiteSpace:"nowrap" }}>
+  <span style={{ background:color+"18", color, border:`1px solid ${color}55`, borderRadius:4, padding:"3px 7px", fontSize:10, fontFamily:"Barlow Condensed", fontWeight:700, letterSpacing:"0.6px", whiteSpace:"nowrap" }}>
     {children}
   </span>
 );
@@ -179,10 +220,10 @@ const Badge = ({ children, color=C.muted }) => (
 const Modal = ({ title, onClose, children, width=560 }) => {
   const isMobile = useIsMobile();
   return (
-  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:isMobile?"flex-start":"center", justifyContent:"center", zIndex:999, padding:isMobile?"10px":"0", paddingTop:isMobile?"calc(env(safe-area-inset-top, 0px) + 10px)":"0" }}>
-    <div style={{ background:C.panel, border:`1px solid ${C.bdr}`, borderRadius:isMobile?10:12, width:isMobile?"100%":width, maxWidth:isMobile?"100%":"96vw", maxHeight:isMobile?"calc(100vh - 20px)":"90vh", overflowY:"auto" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:`1px solid ${C.bdr}` }}>
-        <h3 style={{ fontFamily:"Barlow Condensed", fontSize:17, fontWeight:700, color:C.txt }}>{title}</h3>
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.78)", backdropFilter:"blur(8px)", display:"flex", alignItems:isMobile?"flex-start":"center", justifyContent:"center", zIndex:999, padding:isMobile?"10px":"0", paddingTop:isMobile?"calc(env(safe-area-inset-top, 0px) + 10px)":"0" }}>
+    <div style={{ background:`linear-gradient(180deg, #12110f, ${C.panel})`, border:`1px solid ${C.line}`, borderRadius:8, width:isMobile?"100%":width, maxWidth:isMobile?"100%":"96vw", maxHeight:isMobile?"calc(100vh - 20px)":"90vh", overflowY:"auto", boxShadow:"0 26px 80px rgba(0,0,0,.55)" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"15px 18px", borderBottom:`1px solid ${C.line}` }}>
+        <h3 style={{ fontFamily:"Barlow Condensed", fontSize:18, fontWeight:700, color:C.txt, textTransform:"uppercase", letterSpacing:"0.7px" }}>{title}</h3>
         <button onClick={onClose} style={{ color:C.muted, cursor:"pointer" }}><X size={17}/></button>
       </div>
       <div style={{ padding:isMobile?"14px":"18px" }}>{children}</div>
@@ -192,19 +233,21 @@ const Modal = ({ title, onClose, children, width=560 }) => {
 };
 
 const SH = ({ children }) => (
-  <div style={{ fontFamily:"Barlow Condensed", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1.5px", marginBottom:10, paddingBottom:7, borderBottom:`1px solid ${C.bdr}` }}>
+  <div style={{ fontFamily:"Barlow Condensed", fontSize:11, fontWeight:700, color:C.txt, textTransform:"uppercase", letterSpacing:"1.4px", marginBottom:12, paddingBottom:9, borderBottom:`1px solid ${C.line}`, display:"flex", alignItems:"center", gap:8 }}>
+    <span style={{width:6,height:6,background:C.red,borderRadius:2,display:"inline-block"}}/>
     {children}
   </div>
 );
 
 const Stat = ({ label, value, Icon, color=C.red, sub }) => (
-  <Card>
-    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-      <span style={{ fontFamily:"Barlow", fontSize:11, color:C.muted }}>{label}</span>
-      <div style={{ background:color+"22", borderRadius:5, padding:5 }}><Icon size={14} color={color}/></div>
+  <Card style={{position:"relative",overflow:"hidden",minHeight:118}}>
+    <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:color}}/>
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12, gap:10 }}>
+      <span style={{ fontFamily:"Barlow Condensed", fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:"1px" }}>{label}</span>
+      <div style={{ background:color+"18", border:`1px solid ${color}3d`, borderRadius:6, padding:6, flexShrink:0 }}><Icon size={15} color={color}/></div>
     </div>
-    <div style={{ fontFamily:"Barlow Condensed", fontSize:26, fontWeight:700, color:C.txt, lineHeight:1 }}>{value}</div>
-    {sub && <div style={{ fontFamily:"Barlow", fontSize:11, color:C.muted, marginTop:4 }}>{sub}</div>}
+    <div style={{ fontFamily:"Barlow Condensed", fontSize:28, fontWeight:700, color:C.txt, lineHeight:1, wordBreak:"break-word" }}>{value}</div>
+    {sub && <div style={{ fontFamily:"Barlow", fontSize:11, color:C.muted, marginTop:7 }}>{sub}</div>}
   </Card>
 );
 
@@ -259,11 +302,35 @@ function DashView({ products, sales, expenses, settings }) {
   const recent = [...sales].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
   return (
     <div>
-      <div style={{marginBottom:22}}>
-        <h2 style={{fontFamily:"Bebas Neue",fontSize:30,color:C.txt,letterSpacing:"2px"}}>DASHBOARD</h2>
-        <p style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Willkommen zurück. Alle Daten live aus der Cloud.</p>
+      <div style={{
+        marginBottom:18,
+        border:`1px solid ${C.line}`,
+        borderRadius:8,
+        padding:isMobile?"16px":"22px 24px",
+        background:"linear-gradient(135deg, #151411 0%, #0b0b0a 58%, #19070c 100%)",
+        boxShadow:"0 20px 60px rgba(0,0,0,.28)",
+        display:"grid",
+        gridTemplateColumns:isMobile?"1fr":"1.3fr .7fr",
+        gap:16,
+        alignItems:"end"
+      }}>
+        <div>
+          <div style={{fontFamily:"Barlow Condensed",fontSize:11,fontWeight:700,color:C.red,letterSpacing:"2px",textTransform:"uppercase",marginBottom:8}}>Discipline over feelings</div>
+          <h2 style={{fontFamily:"Bebas Neue",fontSize:isMobile?36:48,color:C.txt,letterSpacing:"3px",lineHeight:.95}}>DOF CONTROL</h2>
+          <p style={{fontFamily:"Barlow",fontSize:13,color:C.muted,marginTop:8,maxWidth:560,lineHeight:1.55}}>Bestand, Umsatz, Versand und Aufgaben auf einen Blick. Keine Spielerei, nur die Zahlen und Aktionen, die gerade wichtig sind.</p>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div style={{border:`1px solid ${C.bdr}`,borderRadius:6,padding:"10px 12px",background:"rgba(255,255,255,.035)"}}>
+            <div style={{fontFamily:"Barlow Condensed",fontSize:10,color:C.muted,letterSpacing:"1px",textTransform:"uppercase"}}>Heute</div>
+            <div style={{fontFamily:"Barlow Condensed",fontSize:24,fontWeight:700,color:C.grn,lineHeight:1.1}}>{fmt(dRev)}</div>
+          </div>
+          <div style={{border:`1px solid ${C.bdr}`,borderRadius:6,padding:"10px 12px",background:"rgba(255,255,255,.035)"}}>
+            <div style={{fontFamily:"Barlow Condensed",fontSize:10,color:C.muted,letterSpacing:"1px",textTransform:"uppercase"}}>Lager</div>
+            <div style={{fontFamily:"Barlow Condensed",fontSize:24,fontWeight:700,color:C.txt,lineHeight:1.1}}>{stock} Stk</div>
+          </div>
+        </div>
       </div>
-      {low.length>0&&<div style={{background:"#1e1200",border:`1px solid ${C.ylw}44`,borderRadius:7,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+      {low.length>0&&<div style={{background:"#201803",border:`1px solid ${C.ylw}55`,borderRadius:7,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
         <AlertTriangle size={14} color={C.ylw}/>
         <span style={{fontFamily:"Barlow",fontSize:12,color:C.ylw}}>{low.length} Produkt{low.length>1?"e":""} mit niedrigem Bestand: {low.map(p=>p.name.split(" ").slice(0,3).join(" ")).join(", ")}</span>
       </div>}
@@ -842,35 +909,40 @@ const NAV=[
 function Sidebar({ active, setActive, lowN, onLogout, pushStatus, onPush, isMobile, isOpen, onClose }) {
   return (
     <aside style={{
-      width:isMobile?252:206, background:C.panel, borderRight:`1px solid ${C.bdr}`,
+      width:isMobile?268:232, background:`linear-gradient(180deg, #0d0d0c, #070707)`, borderRight:`1px solid ${C.line}`,
       display:"flex", flexDirection:"column", flexShrink:0, overflowY:"auto",
       ...(isMobile ? {
-        position:"fixed", top:0, left: isOpen ? 0 : -270, height:"100vh",
-        zIndex:999, transition:"left 0.25s ease", boxShadow: isOpen ? "4px 0 24px rgba(0,0,0,0.6)" : "none"
+        position:"fixed", top:0, left: isOpen ? 0 : -286, height:"100vh",
+        zIndex:999, transition:"left 0.25s ease", boxShadow: isOpen ? "12px 0 40px rgba(0,0,0,0.7)" : "none"
       } : {
         position:"sticky", top:0, height:"100vh", minHeight:"100vh"
       })
     }}>
-      <div style={{padding:"18px 16px 14px",borderBottom:`1px solid ${C.bdr}`}}>
-        <div style={{fontFamily:"Bebas Neue",fontSize:24,letterSpacing:"4px",color:C.txt,lineHeight:1}}>DOFCLOTHES</div>
-        <div style={{fontFamily:"Barlow Condensed",fontSize:9,color:C.red,letterSpacing:"2px",marginTop:2,fontWeight:700}}>BUSINESS DASHBOARD</div>
+      <div style={{padding:"18px 16px 16px",borderBottom:`1px solid ${C.line}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:38,height:38,borderRadius:7,border:`1px solid ${C.red}66`,background:"#18070b",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Bebas Neue",fontSize:22,color:C.txt,letterSpacing:"1px"}}>D</div>
+          <div>
+            <div style={{fontFamily:"Bebas Neue",fontSize:24,letterSpacing:"3px",color:C.txt,lineHeight:1}}>DOFCLOTHES</div>
+            <div style={{fontFamily:"Barlow Condensed",fontSize:9,color:C.red,letterSpacing:"2px",marginTop:2,fontWeight:700}}>BUSINESS OPS</div>
+          </div>
+        </div>
       </div>
-      <nav style={{flex:1,padding:"8px 6px"}}>
+      <nav style={{flex:1,padding:"12px 9px"}}>
         {NAV.map(({id,label,Icon})=>{const on=active===id;return(
-          <button key={id} onClick={()=>setActive(id)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:isMobile?"11px 10px":"8px 9px",borderRadius:6,marginBottom:1,background:on?C.red+"1e":"transparent",border:on?`1px solid ${C.red}33`:"1px solid transparent",color:on?C.txt:C.muted,cursor:"pointer",transition:"background 0.1s",textAlign:"left"}}>
-            <Icon size={14} color={on?C.red:C.muted}/>
-            <span style={{fontFamily:"Barlow Condensed",fontSize:13,fontWeight:on?700:500,letterSpacing:"0.3px",flex:1}}>{label}</span>
+          <button className="dof-nav-btn" key={id} onClick={()=>setActive(id)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:isMobile?"11px 10px":"9px 10px",borderRadius:7,marginBottom:3,background:on?"rgba(255,48,79,.13)":"transparent",border:on?`1px solid ${C.red}55`:"1px solid transparent",color:on?C.txt:C.muted,cursor:"pointer",transition:"background 0.1s",textAlign:"left"}}>
+            <span style={{width:28,height:28,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",background:on?C.red+"22":"rgba(255,255,255,.035)",border:`1px solid ${on?C.red+"44":C.bdr}`}}><Icon size={14} color={on?C.red:C.muted}/></span>
+            <span style={{fontFamily:"Barlow Condensed",fontSize:13,fontWeight:on?700:600,letterSpacing:"0.4px",flex:1}}>{label}</span>
             {id==="inventory"&&lowN>0&&<span style={{background:C.ylw,color:"#000",borderRadius:9,padding:"1px 5px",fontSize:9,fontFamily:"Barlow Condensed",fontWeight:700}}>{lowN}</span>}
           </button>
         );})}
       </nav>
-      <div style={{padding:"10px 14px",borderTop:`1px solid ${C.bdr}`}}>
-        <div style={{fontFamily:"Barlow",fontSize:9,color:C.dim}}>dofclothes.de</div>
-        <div style={{fontFamily:"Barlow Condensed",fontSize:8,color:C.dim,letterSpacing:"0.5px",marginTop:1}}>DISCIPLINE OVER FEELINGS</div>
-        <button onClick={onLogout} style={{marginTop:8,width:"100%",background:"transparent",border:`1px solid ${C.bdr}`,color:C.dim,borderRadius:5,padding:"5px",fontFamily:"Barlow Condensed",fontSize:10,letterSpacing:"0.5px",cursor:"pointer"}}>AUSLOGGEN</button>
+      <div style={{padding:"12px 14px 14px",borderTop:`1px solid ${C.line}`}}>
+        <div style={{fontFamily:"Barlow",fontSize:10,color:C.muted}}>dofclothes.de</div>
+        <div style={{fontFamily:"Barlow Condensed",fontSize:9,color:C.dim,letterSpacing:"1px",marginTop:2}}>DISCIPLINE OVER FEELINGS</div>
+        <button onClick={onLogout} style={{marginTop:10,width:"100%",background:"#11100e",border:`1px solid ${C.line}`,color:C.muted,borderRadius:6,padding:"7px",fontFamily:"Barlow Condensed",fontSize:11,letterSpacing:"0.8px",cursor:"pointer"}}>AUSLOGGEN</button>
         {pushStatus==="granted"
-          ?<div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,padding:"4px 6px"}}><Bell size={10} color="#22c55e"/><span style={{fontFamily:"Barlow Condensed",fontSize:9,color:"#22c55e",letterSpacing:"0.5px"}}>PUSH AKTIV</span></div>
-          :pushStatus!=="unsupported"&&<button onClick={onPush} style={{marginTop:6,width:"100%",background:"transparent",border:`1px solid #e11d4833`,color:"#e11d48",borderRadius:5,padding:"5px",fontFamily:"Barlow Condensed",fontSize:9,letterSpacing:"0.5px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}><Smartphone size={9}/> APP INSTALLIEREN</button>}
+          ?<div style={{marginTop:7,display:"flex",alignItems:"center",gap:6,padding:"6px 7px",border:`1px solid ${C.grn}33`,borderRadius:6,background:C.grn+"10"}}><Bell size={10} color={C.grn}/><span style={{fontFamily:"Barlow Condensed",fontSize:9,color:C.grn,letterSpacing:"0.8px"}}>PUSH AKTIV</span></div>
+          :pushStatus!=="unsupported"&&<button onClick={onPush} style={{marginTop:7,width:"100%",background:"#16060a",border:`1px solid ${C.red}44`,color:C.red,borderRadius:6,padding:"7px",fontFamily:"Barlow Condensed",fontSize:9,letterSpacing:"0.8px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><Smartphone size={9}/> APP INSTALLIEREN</button>}
       </div>
     </aside>
   );
@@ -915,17 +987,18 @@ export default function App() {
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
 
   if (!ready) return (
-    <div style={{background:C.bg,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+    <div className="dof-shell" style={{background:C.bg,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+      <GlobalChromeStyles/>
       <div style={{fontFamily:"Bebas Neue",fontSize:32,letterSpacing:"6px",color:C.txt}}>DOFCLOTHES</div>
       <div style={{display:"flex",alignItems:"center",gap:8,color:C.muted,fontFamily:"Barlow",fontSize:13}}>
         <RefreshCw size={14} style={{animation:"spin 1s linear infinite"}}/> Verbinde mit Datenbank…
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
   return (
-    <div style={{background:C.bg,minHeight:"100vh",display:"flex",color:C.txt}}>
+    <div className="dof-shell" style={{background:C.bg,minHeight:"100vh",display:"flex",color:C.txt}}>
+      <GlobalChromeStyles/>
       {/* Mobile overlay */}
       {isMobile && sideOpen && (
         <div onClick={() => setSideOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:998}}/>
@@ -941,16 +1014,18 @@ export default function App() {
         isOpen={sideOpen}
         onClose={() => setSideOpen(false)}
       />
-      <main style={{flex:1,overflowY:"auto",padding:isMobile?"12px":"26px 28px",paddingTop:isMobile?"0":"26px",minWidth:0}}>
+      <main style={{flex:1,overflowY:"auto",padding:isMobile?"12px":"28px 30px",paddingTop:isMobile?"0":"28px",minWidth:0}}>
         {isMobile && (
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,paddingTop:"calc(env(safe-area-inset-top, 0px) + 10px)",paddingBottom:10,position:"sticky",top:0,zIndex:50,background:C.bg}}>
-            <button onClick={() => setSideOpen(true)} style={{background:C.card,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:7,padding:"10px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,letterSpacing:"1px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,paddingTop:"calc(env(safe-area-inset-top, 0px) + 10px)",paddingBottom:10,position:"sticky",top:0,zIndex:50,background:"rgba(5,5,5,.92)",backdropFilter:"blur(10px)",borderBottom:`1px solid ${C.bdr}`}}>
+            <button onClick={() => setSideOpen(true)} style={{background:C.card,border:`1px solid ${C.line}`,color:C.txt,borderRadius:7,padding:"10px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"Barlow Condensed",fontSize:14,fontWeight:700,letterSpacing:"1px"}}>
               <span style={{fontSize:18,lineHeight:1}}>☰</span> MENÜ
             </button>
             <div style={{fontFamily:"Bebas Neue",fontSize:22,color:C.txt,letterSpacing:"3px"}}>DOFCLOTHES</div>
           </div>
         )}
-        {VIEWS[active]}
+        <div style={{maxWidth:1480,margin:"0 auto"}}>
+          {VIEWS[active]}
+        </div>
       </main>
     </div>
   );
