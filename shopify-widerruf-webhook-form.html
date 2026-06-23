@@ -1,0 +1,153 @@
+<div style="background:#050505;color:#f5f1ea;padding:48px 16px;">
+  <div style="max-width:980px;margin:0 auto;display:block;">
+    <div id="dof-withdrawal-success" style="display:none;margin-bottom:22px;background:#0f1a12;border:1px solid #2f6f3f;color:#f5f1ea;padding:16px;font-size:14px;line-height:1.6;">
+      Danke. Dein Widerrufsformular wurde abgesendet. Wir melden uns schnellstm&ouml;glich bei dir.
+    </div>
+
+    <div id="dof-withdrawal-error" style="display:none;margin-bottom:22px;background:#1a0f12;border:1px solid #ff304f;color:#f5f1ea;padding:16px;font-size:14px;line-height:1.6;">
+      Das Formular konnte gerade nicht abgesendet werden. Bitte versuche es gleich nochmal.
+    </div>
+
+    <div style="margin-bottom:28px;">
+      <p style="margin:0 0 12px;color:#ff304f;font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;">
+        DOF Returns
+      </p>
+      <h1 style="margin:0 0 16px;color:#ffffff;font-size:36px;line-height:1;font-weight:900;letter-spacing:1px;text-transform:uppercase;">
+        Widerrufsformular
+      </h1>
+      <p style="max-width:620px;margin:0;color:#b8b0a8;font-size:15px;line-height:1.7;">
+        Nutze dieses Formular, wenn du deine Bestellung widerrufen m&ouml;chtest. Deine Anfrage wird direkt an unseren Support gesendet.
+      </p>
+    </div>
+
+    <form id="dof-withdrawal-form" style="background:#101010;border:1px solid #242424;border-top:3px solid #ff304f;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.35);">
+      <input type="text" name="website" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:16px;">
+        <div>
+          <label for="withdrawal-name" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">Vor- und Nachname *</label>
+          <input id="withdrawal-name" type="text" name="name" required autocomplete="name" style="box-sizing:border-box;width:100%;min-height:48px;background:#090909;border:1px solid #303030;color:#f5f1ea;padding:13px 14px;border-radius:0;">
+        </div>
+
+        <div>
+          <label for="withdrawal-email" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">E-Mail *</label>
+          <input id="withdrawal-email" type="email" name="email" required autocomplete="email" style="box-sizing:border-box;width:100%;min-height:48px;background:#090909;border:1px solid #303030;color:#f5f1ea;padding:13px 14px;border-radius:0;">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:16px;">
+        <div>
+          <label for="withdrawal-order" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">Bestellnummer *</label>
+          <input id="withdrawal-order" type="text" name="orderNumber" placeholder="#1001" required style="box-sizing:border-box;width:100%;min-height:48px;background:#090909;border:1px solid #303030;color:#f5f1ea;padding:13px 14px;border-radius:0;">
+        </div>
+
+        <div>
+          <label for="withdrawal-items" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">Artikel</label>
+          <input id="withdrawal-items" type="text" name="items" placeholder="z. B. Oversized T-Shirt Schwarz, Gr&ouml;&szlig;e M" style="box-sizing:border-box;width:100%;min-height:48px;background:#090909;border:1px solid #303030;color:#f5f1ea;padding:13px 14px;border-radius:0;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label for="withdrawal-reason" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">Grund</label>
+        <select id="withdrawal-reason" name="reason" style="box-sizing:border-box;width:100%;min-height:48px;background:#090909;border:1px solid #303030;color:#f5f1ea;padding:13px 14px;border-radius:0;">
+          <option value="Kein Grund angegeben">Bitte ausw&auml;hlen</option>
+          <option value="Falsche Gr&ouml;&szlig;e">Falsche Gr&ouml;&szlig;e</option>
+          <option value="Aus Versehen bestellt">Aus Versehen bestellt</option>
+          <option value="Artikel gef&auml;llt nicht">Artikel gef&auml;llt nicht</option>
+          <option value="Qualit&auml;t oder Verarbeitung">Qualit&auml;t oder Verarbeitung</option>
+          <option value="Falscher Artikel geliefert">Falscher Artikel geliefert</option>
+          <option value="Artikel besch&auml;digt">Artikel besch&auml;digt</option>
+          <option value="Lieferung kam zu sp&auml;t">Lieferung kam zu sp&auml;t</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label for="withdrawal-message" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">Nachricht / Sonstiges</label>
+        <textarea id="withdrawal-message" name="message" rows="7" placeholder="Schreib hier rein, falls du noch etwas erg&auml;nzen m&ouml;chtest." style="box-sizing:border-box;width:100%;min-height:150px;background:#090909;border:1px solid #303030;color:#f5f1ea;padding:13px 14px;border-radius:0;resize:vertical;"></textarea>
+      </div>
+
+      <label for="withdrawal-confirm" style="display:flex;gap:12px;align-items:flex-start;margin-bottom:20px;color:#c8c1ba;font-size:13px;line-height:1.5;">
+        <input id="withdrawal-confirm" type="checkbox" name="confirm" value="yes" required style="width:18px;height:18px;margin-top:2px;accent-color:#ff304f;">
+        <span>Hiermit widerrufe ich den Kaufvertrag zu der oben genannten Bestellung.</span>
+      </label>
+
+      <button id="dof-withdrawal-submit" type="submit" style="width:100%;min-height:54px;background:#f5f1ea;border:1px solid #f5f1ea;color:#050505;font-size:13px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;cursor:pointer;">
+        Widerruf absenden
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var endpoint = 'https://dof-d.vercel.app/api/widerruf';
+    var form = document.getElementById('dof-withdrawal-form');
+    var success = document.getElementById('dof-withdrawal-success');
+    var errorBox = document.getElementById('dof-withdrawal-error');
+    var button = document.getElementById('dof-withdrawal-submit');
+
+    if (!form) return;
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var formData = new FormData(form);
+      var payload = {
+        name: formData.get('name') || '',
+        email: formData.get('email') || '',
+        orderNumber: formData.get('orderNumber') || '',
+        items: formData.get('items') || '',
+        reason: formData.get('reason') || '',
+        message: formData.get('message') || '',
+        confirm: formData.get('confirm') === 'yes',
+        website: formData.get('website') || ''
+      };
+
+      if (success) success.style.display = 'none';
+      if (errorBox) errorBox.style.display = 'none';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Wird gesendet...';
+        button.style.opacity = '0.65';
+      }
+
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (response) {
+          return response.json().catch(function () {
+            return {};
+          }).then(function (data) {
+            if (!response.ok || !data.ok) {
+              throw new Error(data.error || data.detail || 'Senden fehlgeschlagen');
+            }
+            return data;
+          });
+        })
+        .then(function () {
+          form.reset();
+          if (success) {
+            success.style.display = 'block';
+            success.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        })
+        .catch(function (error) {
+          if (errorBox) {
+            errorBox.textContent = 'Fehler: ' + error.message;
+            errorBox.style.display = 'block';
+            errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        })
+        .finally(function () {
+          if (button) {
+            button.disabled = false;
+            button.textContent = 'Widerruf absenden';
+            button.style.opacity = '1';
+          }
+        });
+    });
+  })();
+</script>
