@@ -181,7 +181,6 @@ async function sendWithdrawalEmails(payload) {
   const senderName = process.env.MAIL_FROM_NAME || "DOF Support";
   const toEmail = process.env.WIDERRUF_TO_EMAIL || "support@dofclothes.de";
   const toName = process.env.WIDERRUF_TO_NAME || "DOF Support";
-  const bccEmail = process.env.WIDERRUF_BCC_EMAIL || toEmail;
 
   const transporter = getSmtpTransport();
   const supportEmail = buildSupportEmail(payload);
@@ -200,7 +199,6 @@ async function sendWithdrawalEmails(payload) {
   const customerResult = await transporter.sendMail({
     from: `"${senderName}" <${senderEmail}>`,
     to: `"${payload.name}" <${payload.email}>`,
-    bcc: `"${toName}" <${bccEmail}>`,
     replyTo: `"${toName}" <${toEmail}>`,
     subject: customerEmail.subject,
     text: customerEmail.text,
