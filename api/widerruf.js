@@ -64,7 +64,6 @@ function normalizePayload(rawBody = {}) {
 }
 
 function validatePayload(payload) {
-  if (payload.website) return "Spam erkannt.";
   if (!payload.name) return "Name fehlt.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "E-Mail ist ungueltig.";
   if (!payload.orderNumber) return "Bestellnummer fehlt.";

@@ -21,8 +21,6 @@
     </div>
 
     <form id="dof-withdrawal-form" style="background:#101010;border:1px solid #242424;border-top:3px solid #ff304f;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.35);">
-      <input type="text" name="website" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
-
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:16px;">
         <div>
           <label for="withdrawal-name" style="display:block;margin-bottom:8px;color:#f5f1ea;font-size:11px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;">Vor- und Nachname *</label>
@@ -101,7 +99,7 @@
         reason: formData.get('reason') || '',
         message: formData.get('message') || '',
         confirm: formData.get('confirm') === 'yes',
-        website: formData.get('website') || ''
+        website: ''
       };
 
       if (success) success.style.display = 'none';
