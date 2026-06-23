@@ -38,7 +38,19 @@ function escapeHtml(value = "") {
     .replace(/'/g, "&#039;");
 }
 
-function normalizePayload(body = {}) {
+function parseBody(body = {}) {
+  if (typeof body !== "string") return body || {};
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return {};
+  }
+}
+
+function normalizePayload(rawBody = {}) {
+  const body = parseBody(rawBody);
+
   return {
     name: String(body.name || "").trim(),
     email: String(body.email || "").trim(),
@@ -54,20 +66,20 @@ function normalizePayload(body = {}) {
 function validatePayload(payload) {
   if (payload.website) return "Spam erkannt.";
   if (!payload.name) return "Name fehlt.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "E-Mail ist ungültig.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "E-Mail ist ungueltig.";
   if (!payload.orderNumber) return "Bestellnummer fehlt.";
-  if (!payload.confirm) return "Widerruf muss bestätigt werden.";
+  if (!payload.confirm) return "Widerruf muss bestaetigt werden.";
   return null;
 }
 
-function buildEmail(payload) {
+function buildRows(payload) {
   const submittedAt = new Date().toLocaleString("de-DE", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Europe/Berlin",
   });
 
-  const rows = [
+  return [
     ["Name", payload.name],
     ["E-Mail", payload.email],
     ["Bestellnummer", payload.orderNumber],
@@ -76,7 +88,14 @@ function buildEmail(payload) {
     ["Nachricht", payload.message || "-"],
     ["Abgesendet", submittedAt],
   ];
+}
 
+function rowsToText(rows) {
+  return rows.map(([label, value]) => `${label}: ${value}`).join("\n");
+}
+
+function buildSupportEmail(payload) {
+  const rows = buildRows(payload);
   const htmlRows = rows
     .map(([label, value]) => `
       <tr>
@@ -86,13 +105,12 @@ function buildEmail(payload) {
     `)
     .join("");
 
-  const textContent = rows
-    .map(([label, value]) => `${label}: ${value}`)
-    .join("\n");
+  const text = rowsToText(rows);
 
   return {
     subject: `Neuer Widerruf ${payload.orderNumber}`,
-    htmlContent: `
+    text: `DOF Widerrufsformular\n\n${text}`,
+    html: `
       <div style="background:#050505;color:#ffffff;font-family:Arial,sans-serif;padding:24px;">
         <p style="margin:0 0 8px;color:#ff304f;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">DOF Widerrufsformular</p>
         <h1 style="margin:0 0 22px;font-size:26px;line-height:1.15;">Neuer Widerruf eingegangen</h1>
@@ -101,46 +119,96 @@ function buildEmail(payload) {
         </table>
       </div>
     `,
-    textContent: `DOF Widerrufsformular\n\n${textContent}`,
   };
 }
 
-async function sendBrevoEmail(payload) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || "support@dofclothes.de";
-  const senderName = process.env.BREVO_SENDER_NAME || "DOF Support";
+function buildCustomerEmail(payload) {
+  const rows = buildRows(payload);
+  const details = rowsToText(rows);
+
+  return {
+    subject: `Bestaetigung deines Widerrufs ${payload.orderNumber}`,
+    text: [
+      `Hallo ${payload.name},`,
+      "",
+      `wir bestaetigen den Eingang deines Widerrufs zu deiner Bestellung ${payload.orderNumber}.`,
+      "Deine Anfrage wurde an unseren Support weitergeleitet.",
+      "",
+      details,
+      "",
+      "Bitte bewahre diese E-Mail als Nachweis auf. Wir melden uns bei dir, falls wir weitere Informationen benoetigen.",
+      "",
+      "DOF Support",
+    ].join("\n"),
+    html: `
+      <div style="background:#050505;color:#ffffff;font-family:Arial,sans-serif;padding:24px;">
+        <p style="margin:0 0 8px;color:#ff304f;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">DOF Support</p>
+        <h1 style="margin:0 0 18px;font-size:24px;line-height:1.15;">Dein Widerruf ist eingegangen</h1>
+        <p style="margin:0 0 16px;color:#f5f1ea;line-height:1.6;">Hallo ${escapeHtml(payload.name)},</p>
+        <p style="margin:0 0 16px;color:#d6d0c9;line-height:1.6;">
+          wir bestaetigen den Eingang deines Widerrufs zu deiner Bestellung ${escapeHtml(payload.orderNumber)}.
+          Deine Anfrage wurde an unseren Support weitergeleitet.
+        </p>
+        <div style="margin:22px 0;padding:16px;border:1px solid #272727;background:#101010;color:#f5f1ea;line-height:1.7;white-space:pre-line;">${escapeHtml(details)}</div>
+        <p style="margin:0;color:#b8b0a8;line-height:1.6;">
+          Bitte bewahre diese E-Mail als Nachweis auf. Wir melden uns bei dir, falls wir weitere Informationen benoetigen.
+        </p>
+      </div>
+    `,
+  };
+}
+
+function getSmtpTransport() {
+  const nodemailer = require("nodemailer");
+  const host = process.env.SMTP_HOST || "smtp.strato.de";
+  const port = Number(process.env.SMTP_PORT || 465);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!user || !pass) {
+    throw new Error("SMTP_USER oder SMTP_PASS fehlt in Vercel.");
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+}
+
+async function sendWithdrawalEmails(payload) {
+  const senderEmail = process.env.MAIL_FROM || process.env.SMTP_USER || "support@dofclothes.de";
+  const senderName = process.env.MAIL_FROM_NAME || "DOF Support";
   const toEmail = process.env.WIDERRUF_TO_EMAIL || "support@dofclothes.de";
   const toName = process.env.WIDERRUF_TO_NAME || "DOF Support";
 
-  if (!apiKey) {
-    throw new Error("BREVO_API_KEY fehlt in Vercel.");
-  }
+  const transporter = getSmtpTransport();
+  const supportEmail = buildSupportEmail(payload);
+  const customerEmail = buildCustomerEmail(payload);
 
-  const email = buildEmail(payload);
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "api-key": apiKey,
-    },
-    body: JSON.stringify({
-      sender: { email: senderEmail, name: senderName },
-      to: [{ email: toEmail, name: toName }],
-      replyTo: { email: payload.email, name: payload.name },
-      subject: email.subject,
-      htmlContent: email.htmlContent,
-      textContent: email.textContent,
-    }),
+  const supportResult = await transporter.sendMail({
+    from: `"${senderName}" <${senderEmail}>`,
+    to: `"${toName}" <${toEmail}>`,
+    replyTo: `"${payload.name}" <${payload.email}>`,
+    subject: supportEmail.subject,
+    text: supportEmail.text,
+    html: supportEmail.html,
   });
 
-  const resultText = await response.text();
+  const customerResult = await transporter.sendMail({
+    from: `"${senderName}" <${senderEmail}>`,
+    to: `"${payload.name}" <${payload.email}>`,
+    replyTo: `"${toName}" <${toEmail}>`,
+    subject: customerEmail.subject,
+    text: customerEmail.text,
+    html: customerEmail.html,
+  });
 
-  if (!response.ok) {
-    throw new Error(`Brevo Fehler: ${resultText || response.statusText}`);
-  }
-
-  return resultText ? JSON.parse(resultText) : {};
+  return {
+    supportMessageId: supportResult.messageId,
+    customerMessageId: customerResult.messageId,
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -159,8 +227,8 @@ module.exports = async function handler(req, res) {
       return sendJson(req, res, 400, { ok: false, error: validationError });
     }
 
-    const brevo = await sendBrevoEmail(payload);
-    return sendJson(req, res, 200, { ok: true, brevo });
+    const mail = await sendWithdrawalEmails(payload);
+    return sendJson(req, res, 200, { ok: true, mail });
   } catch (error) {
     console.error("Widerruf API Fehler:", error);
     return sendJson(req, res, 500, {
