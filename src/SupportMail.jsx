@@ -97,6 +97,27 @@ export default function SupportMailView({ mailMeta = {}, setMailMeta }) {
     }
   }
 
+  useEffect(() => {
+    let stopped = false;
+
+    async function checkNewMail() {
+      try {
+        const res = await fetch("/api/support-mail-check", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!stopped && res.ok && data.newCount > 0) loadMail();
+      } catch {
+        // Silent: mail polling should never block the dashboard.
+      }
+    }
+
+    checkNewMail();
+    const timer = window.setInterval(checkNewMail, 60000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     return messages.filter(msg => {
       const meta = mailMeta[msg.id] || {};
