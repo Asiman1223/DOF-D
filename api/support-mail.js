@@ -101,7 +101,7 @@ async function withImap(fn) {
 
 async function listMessages(req, res) {
   const mailbox = String(req.query.mailbox || "INBOX");
-  const limit = Math.min(Math.max(Number(req.query.limit || 30), 1), 50);
+  const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 200);
 
   const data = await withImap(async client => {
     const lock = await client.getMailboxLock(mailbox);

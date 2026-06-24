@@ -85,11 +85,15 @@ export default function SupportMailView({ mailMeta = {}, setMailMeta }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/support-mail?limit=35");
+      const res = await fetch("/api/support-mail?limit=100");
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "E-Mails konnten nicht geladen werden.");
-      setMessages(data.messages || []);
-      if (!selectedId && data.messages?.[0]) setSelectedId(data.messages[0].id);
+      const nextMessages = data.messages || [];
+      setMessages(nextMessages);
+      setSelectedId(prev => {
+        if (prev && nextMessages.some(message => message.id === prev)) return prev;
+        return nextMessages[0]?.id || "";
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -110,6 +114,7 @@ export default function SupportMailView({ mailMeta = {}, setMailMeta }) {
       }
     }
 
+    loadMail();
     checkNewMail();
     const timer = window.setInterval(checkNewMail, 60000);
     return () => {
