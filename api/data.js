@@ -10,6 +10,7 @@ const ALLOWED_KEYS = new Set([
   "dof_influencers",
   "dof_tasks",
   "dof_support_mail_meta",
+  "dof_returns",
 ]);
 
 function env(name) {

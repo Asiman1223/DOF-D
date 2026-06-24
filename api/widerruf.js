@@ -157,6 +157,76 @@ function buildCustomerEmail(payload) {
   };
 }
 
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function supabaseConfig() {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !serviceKey) return null;
+
+  return {
+    url,
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": "application/json",
+    },
+  };
+}
+
+async function dbGet(key) {
+  const config = supabaseConfig();
+  if (!config) return null;
+
+  const res = await fetch(`${config.url}/rest/v1/app_data?key=eq.${encodeURIComponent(key)}&select=value`, {
+    headers: config.headers,
+  });
+  const rows = await res.json();
+  return rows?.[0]?.value ?? null;
+}
+
+async function dbSet(key, value) {
+  const config = supabaseConfig();
+  if (!config) return;
+
+  const res = await fetch(`${config.url}/rest/v1/app_data`, {
+    method: "POST",
+    headers: { ...config.headers, Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function saveWithdrawalToDashboard(payload) {
+  const key = "dof_returns";
+  const current = await dbGet(key);
+  const list = Array.isArray(current) ? current : [];
+  const now = new Date().toISOString();
+
+  const item = {
+    id: uid(),
+    customerName: payload.name,
+    email: payload.email,
+    orderNumber: payload.orderNumber,
+    product: payload.items || "",
+    reason: payload.reason || "Kein Grund angegeben",
+    status: "new",
+    refundStatus: "open",
+    refundAmount: "",
+    submittedAt: now,
+    receivedAt: "",
+    note: payload.message || "",
+    source: "widerruf_form",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await dbSet(key, [item, ...list]);
+  return item.id;
+}
+
 function getSmtpTransport() {
   const nodemailer = require("nodemailer");
   const host = process.env.SMTP_HOST || "smtp.strato.de";
@@ -228,7 +298,15 @@ module.exports = async function handler(req, res) {
     }
 
     const mail = await sendWithdrawalEmails(payload);
-    return sendJson(req, res, 200, { ok: true, mail });
+    let dashboardId = null;
+
+    try {
+      dashboardId = await saveWithdrawalToDashboard(payload);
+    } catch (storageError) {
+      console.error("Widerruf Dashboard-Speicherung Fehler:", storageError);
+    }
+
+    return sendJson(req, res, 200, { ok: true, mail, dashboardId });
   } catch (error) {
     console.error("Widerruf API Fehler:", error);
     return sendJson(req, res, 500, {

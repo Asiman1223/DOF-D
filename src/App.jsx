@@ -5,6 +5,7 @@ import KalkulatorView from "./Kalkulator.jsx";
 import { usePush } from "./usePush.js";
 import RechnungenView from "./Rechnungen.jsx";
 import SupportMailView from "./SupportMail.jsx";
+import ReturnsView from "./Returns.jsx";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -895,6 +896,7 @@ const NAV=[
   {id:"sale",     label:"Verkauf",      Icon:ShoppingCart},
   {id:"orders",   label:"Bestellungen", Icon:Receipt},
   {id:"shipping", label:"Versand",      Icon:Truck},
+  {id:"returns",  label:"Retouren",     Icon:RefreshCw},
   {id:"expenses", label:"Ausgaben",     Icon:DollarSign},
   {id:"stats",    label:"Statistiken",  Icon:BarChart2},
   {id:"report",   label:"Monatsbericht",Icon:FileText},
@@ -962,6 +964,7 @@ export default function App() {
   const [influencers,setInfluencers,p6] = useDB("dof_influencers", []);
   const [tasks, setTasks, p7] = useDB("dof_tasks", []);
   const [supportMailMeta, setSupportMailMeta, p8] = useDB("dof_support_mail_meta", {});
+  const [returns, setReturns, p9] = useDB("dof_returns", []);
   const [active, setActive] = useState("dashboard");
   const [sideOpen, setSideOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -973,13 +976,13 @@ export default function App() {
     return () => window.removeEventListener("dof_auth_expired", expire);
   }, []);
 
-  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8;
+  const ready = p0 && p1 && p2 && p3 && p4 && p5 && p6 && p7 && p8 && p9;
   const lowN  = products.filter(p=>{const t=Object.values(p.sizes).reduce((a,b)=>a+b,0);return t>0&&t<=settings.lowStockThreshold;}).length;
-  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers, tasks, setTasks, supportMailMeta, setSupportMailMeta };
+  const vp    = { products, setProducts, sales, setSales, expenses, setExpenses, customers, setCustomers, settings, setSettings, invoices, setInvoices, influencers, setInfluencers, tasks, setTasks, supportMailMeta, setSupportMailMeta, returns, setReturns };
 
   const VIEWS = {
     dashboard:<DashView  {...vp}/>, products:<ProdView  {...vp}/>, inventory:<LagerView {...vp}/>,
-    sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, shipping:<ShippingView {...vp}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
+    sale:<SaleView {...vp}/>, orders:<OrdersView {...vp}/>, shipping:<ShippingView {...vp}/>, returns:<ReturnsView returns={returns} setReturns={setReturns}/>, expenses:<AusgView  {...vp} invoices={invoices}/>,
     stats:<StatsView {...vp}/>, report:<ReportView {...vp}/>, customers:<KundView  {...vp}/>, todo:<TodoView {...vp}/>, supportmail:<SupportMailView mailMeta={supportMailMeta} setMailMeta={setSupportMailMeta}/>, influencers:<InfluencerView {...vp}/>,
     settings:<EinstView {...vp} pushStatus={pushStatus} onPush={pushSubscribe}/>,
     rechnungen:<RechnungenView expenses={expenses} setExpenses={setExpenses} invoices={invoices} setInvoices={setInvoices}/>,
