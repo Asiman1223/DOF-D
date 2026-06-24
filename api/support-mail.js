@@ -61,6 +61,16 @@ function addressText(value) {
   return String(value || "");
 }
 
+function firstAddress(value) {
+  if (!value) return "";
+  if (Array.isArray(value.value) && value.value[0]?.address) return value.value[0].address;
+  const text = addressText(value);
+  const match = text.match(/<([^>]+)>/);
+  if (match?.[1]) return match[1];
+  const email = text.match(/[^\s<>"]+@[^\s<>"]+\.[^\s<>"]+/);
+  return email?.[0] || text;
+}
+
 function stripHtml(html = "") {
   return String(html)
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -120,6 +130,9 @@ async function listMessages(req, res) {
           messageId: parsed.messageId || msg.envelope?.messageId || "",
           subject: parsed.subject || msg.envelope?.subject || "(Kein Betreff)",
           from: addressText(parsed.from),
+          fromEmail: firstAddress(parsed.from),
+          replyTo: addressText(parsed.replyTo) || addressText(parsed.from),
+          replyToEmail: firstAddress(parsed.replyTo) || firstAddress(parsed.from),
           to: addressText(parsed.to),
           date: (parsed.date || msg.internalDate || new Date()).toISOString(),
           unseen: !flags.includes("\\Seen"),

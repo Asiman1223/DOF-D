@@ -132,7 +132,7 @@ export default function SupportMailView({ mailMeta = {}, setMailMeta }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "reply",
-          to: selected.from,
+          to: selected.replyToEmail || selected.replyTo || selected.fromEmail || selected.from,
           subject: cleanReplySubject(selected.subject),
           text: replyText,
           messageId: selected.messageId,
@@ -225,6 +225,7 @@ export default function SupportMailView({ mailMeta = {}, setMailMeta }) {
                 <div>
                   <h3 style={{fontFamily:"Barlow Condensed",fontSize:23,color:C.txt,letterSpacing:".4px",margin:"0 0 5px"}}>{selected.subject}</h3>
                   <div style={{fontFamily:"Barlow",fontSize:12,color:C.muted}}>Von: {selected.from}</div>
+                  <div style={{fontFamily:"Barlow",fontSize:12,color:C.muted,marginTop:3}}>Antwort an: {selected.replyTo || selected.from}</div>
                   <div style={{fontFamily:"Barlow",fontSize:11,color:C.dim,marginTop:3}}>{formatDate(selected.date)}</div>
                 </div>
                 <Badge color={STATUS[selectedMeta.status || "new"]?.[1] || C.red}>{STATUS[selectedMeta.status || "new"]?.[0] || "Neu"}</Badge>
@@ -249,7 +250,7 @@ export default function SupportMailView({ mailMeta = {}, setMailMeta }) {
                 <label style={{fontFamily:"Barlow Condensed",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:"1px"}}>Antwort</label>
                 <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Antwort an den Kunden schreiben..." style={{minHeight:120,background:C.card2,border:`1px solid ${C.bdr}`,color:C.txt,borderRadius:6,padding:"9px 10px",fontFamily:"Barlow",fontSize:13,resize:"vertical"}}/>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                  <div style={{fontFamily:"Barlow",fontSize:12,color:sentInfo ? C.grn : C.dim}}>{sentInfo || "Antwort wird über support@dofclothes.de gesendet."}</div>
+                  <div style={{fontFamily:"Barlow",fontSize:12,color:sentInfo ? C.grn : C.dim}}>{sentInfo || `Antwort geht an ${selected.replyToEmail || selected.replyTo || selected.from}.`}</div>
                   <Button onClick={sendReply} disabled={sending || !replyText.trim()} variant="success"><Send size={13}/>{sending ? "Sende..." : "Antwort senden"}</Button>
                 </div>
               </div>
